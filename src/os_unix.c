@@ -46,6 +46,14 @@
 static int selinux_enabled = -1;
 #endif
 
+#ifdef HAVE_SMACK
+# include <attr/xattr.h>
+# include <linux/xattr.h>
+# ifndef SMACK_LABEL_LEN
+#  define SMACK_LABEL_LEN 1024
+# endif
+#endif
+
 /*
  * Use this prototype for select, some include files have a wrong prototype
  */
@@ -61,6 +69,11 @@ static int selinux_enabled = -1;
 #  include <cygwin/version.h>
 #  include <sys/cygwin.h>	/* for cygwin_conv_to_posix_path() and/or
 				 * for cygwin_conv_path() */
+#  ifdef FEAT_CYGWIN_WIN32_CLIPBOARD
+#   define WIN32_LEAN_AND_MEAN
+#   include <windows.h>
+#   include "winclip.pro"
+#  endif
 # endif
 #endif
 
@@ -127,6 +140,7 @@ static RETSIGTYPE sig_sysmouse __ARGS(SIGPROTOARG);
 #  include <X11/Shell.h>
 #  include <X11/StringDefs.h>
 static Widget	xterm_Shell = (Widget)0;
+static void clip_update __ARGS((void));
 static void xterm_update __ARGS((void));
 # endif
 
@@ -162,7 +176,7 @@ typedef int waitstatus;
 static pid_t wait4pid __ARGS((pid_t, waitstatus *));
 
 static int  WaitForChar __ARGS((long));
-#if defined(__BEOS__)
+#if defined(__BEOS__) || defined(VMS)
 int  RealWaitForChar __ARGS((int, long, int *));
 #else
 static int  RealWaitForChar __ARGS((int, long, int *));
@@ -278,7 +292,8 @@ static struct signalinfo
 #ifdef SIGBUS
     {SIGBUS,	    "BUS",	TRUE},
 #endif
-#ifdef SIGSEGV
+#if defined(SIGSEGV) && !defined(FEAT_MZSCHEME)
+    /* MzScheme uses SEGV in its garbage collector */
     {SIGSEGV,	    "SEGV",	TRUE},
 #endif
 #ifdef SIGSYS
@@ -428,7 +443,6 @@ mch_inchar(buf, maxlen, wtime, tb_change_cnt)
 	/* Process the queued netbeans messages. */
 	netbeans_parse_messages();
 #endif
-#ifndef VMS  /* VMS: must try reading, WaitForChar() does nothing. */
 	/*
 	 * We want to be interrupted by the winch signal
 	 * or by an event on the monitored file descriptors.
@@ -439,7 +453,6 @@ mch_inchar(buf, maxlen, wtime, tb_change_cnt)
 		handle_resize();
 	    return 0;
 	}
-#endif
 
 	/* If input was put directly in typeahead buffer bail out here. */
 	if (typebuf_changed(tb_change_cnt))
@@ -797,6 +810,10 @@ mch_stackcheck(p)
  * completely full.
  */
 
+#if defined(HAVE_AVAILABILITYMACROS_H)
+# include <AvailabilityMacros.h>
+#endif
+
 #ifndef SIGSTKSZ
 # define SIGSTKSZ 8000    /* just a guess of how much stack is needed... */
 #endif
@@ -950,8 +967,10 @@ mch_didjmp()
 
 /*
  * This function handles deadly signals.
- * It tries to preserve any swap file and exit properly.
+ * It tries to preserve any swap files and exit properly.
  * (partly from Elvis).
+ * NOTE: Avoid unsafe functions, such as allocating memory, they can result in
+ * a deadlock.
  */
     static RETSIGTYPE
 deathtrap SIGDEFARG(sigarg)
@@ -1083,18 +1102,23 @@ deathtrap SIGDEFARG(sigarg)
     }
     if (entered == 2)
     {
-	OUT_STR(_("Vim: Double signal, exiting\n"));
+	/* No translation, it may call malloc(). */
+	OUT_STR("Vim: Double signal, exiting\n");
 	out_flush();
 	getout(1);
     }
 
+    /* No translation, it may call malloc(). */
 #ifdef SIGHASARG
-    sprintf((char *)IObuff, _("Vim: Caught deadly signal %s\n"),
+    sprintf((char *)IObuff, "Vim: Caught deadly signal %s\n",
 							 signal_info[i].name);
 #else
-    sprintf((char *)IObuff, _("Vim: Caught deadly signal\n"));
+    sprintf((char *)IObuff, "Vim: Caught deadly signal\n");
 #endif
-    preserve_exit();		    /* preserve files and exit */
+
+    /* Preserve files and exit.  This sets the really_exiting flag to prevent
+     * calling free(). */
+    preserve_exit();
 
 #ifdef NBDEBUG
     reset_signals();
@@ -1132,6 +1156,13 @@ sigcont_handler SIGDEFARG(sigarg)
 
 # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
 static void loose_clipboard __ARGS((void));
+# ifdef USE_SYSTEM
+static void save_clipboard __ARGS((void));
+static void restore_clipboard __ARGS((void));
+
+static void *clip_star_save = NULL;
+static void *clip_plus_save = NULL;
+# endif
 
 /*
  * Called when Vim is going to sleep or execute a shell command.
@@ -1152,6 +1183,44 @@ loose_clipboard()
 	    XFlush(x11_display);
     }
 }
+
+# ifdef USE_SYSTEM
+/*
+ * Save clipboard text to restore later.
+ */
+    static void
+save_clipboard()
+{
+    if (clip_star.owned)
+	clip_star_save = get_register('*', TRUE);
+    if (clip_plus.owned)
+	clip_plus_save = get_register('+', TRUE);
+}
+
+/*
+ * Restore clipboard text if no one own the X selection.
+ */
+    static void
+restore_clipboard()
+{
+    if (clip_star_save != NULL)
+    {
+	if (!clip_gen_owner_exists(&clip_star))
+	    put_register('*', clip_star_save);
+	else
+	    free_register(clip_star_save);
+	clip_star_save = NULL;
+    }
+    if (clip_plus_save != NULL)
+    {
+	if (!clip_gen_owner_exists(&clip_plus))
+	    put_register('+', clip_plus_save);
+	else
+	    free_register(clip_plus_save);
+	clip_plus_save = NULL;
+    }
+}
+# endif
 #endif
 
 /*
@@ -1221,6 +1290,9 @@ mch_init()
 
 #ifdef MACOS_CONVERT
     mac_conv_init();
+#endif
+#ifdef FEAT_CYGWIN_WIN32_CLIPBOARD
+    win_clip_init();
 #endif
 }
 
@@ -1504,7 +1576,7 @@ x_IOerror_check(dpy)
 {
     /* This function should not return, it causes exit().  Longjump instead. */
     LONGJMP(lc_jump_env, 1);
-#  ifdef VMS
+#  if defined(VMS) || defined(__CYGWIN__) || defined(__CYGWIN32__)
     return 0;  /* avoid the compiler complains about missing return value */
 #  endif
 }
@@ -1526,7 +1598,7 @@ x_IOerror_handler(dpy)
 
     /* This function should not return, it causes exit().  Longjump instead. */
     LONGJMP(x_jump_env, 1);
-# ifdef VMS
+# if defined(VMS) || defined(__CYGWIN__) || defined(__CYGWIN32__)
     return 0;  /* avoid the compiler complains about missing return value */
 # endif
 }
@@ -2159,10 +2231,13 @@ use_xterm_like_mouse(name)
  * Return 1 for "xterm".
  * Return 2 for "xterm2".
  * Return 3 for "urxvt".
+ * Return 4 for "sgr".
  */
     int
 use_xterm_mouse()
 {
+    if (ttym_flags == TTYM_SGR)
+	return 4;
     if (ttym_flags == TTYM_URXVT)
 	return 3;
     if (ttym_flags == TTYM_XTERM2)
@@ -2509,15 +2584,12 @@ mch_FullName(fname, buf, len, force)
 	}
 
 	l = STRLEN(buf);
-	if (l >= len)
-	    retval = FAIL;
+	if (l >= len - 1)
+	    retval = FAIL; /* no space for trailing "/" */
 #ifndef VMS
-	else
-	{
-	    if (l > 0 && buf[l - 1] != '/' && *fname != NUL
+	else if (l > 0 && buf[l - 1] != '/' && *fname != NUL
 						   && STRCMP(fname, ".") != 0)
-		STRCAT(buf, "/");
-	}
+	    STRCAT(buf, "/");
 #endif
     }
 
@@ -2734,6 +2806,84 @@ mch_copy_sec(from_file, to_file)
 }
 #endif /* HAVE_SELINUX */
 
+#if defined(HAVE_SMACK) && !defined(PROTO)
+/*
+ * Copy security info from "from_file" to "to_file".
+ */
+    void
+mch_copy_sec(from_file, to_file)
+    char_u	*from_file;
+    char_u	*to_file;
+{
+    static const char * const smack_copied_attributes[] =
+	{
+	    XATTR_NAME_SMACK,
+	    XATTR_NAME_SMACKEXEC,
+	    XATTR_NAME_SMACKMMAP
+	};
+
+    char	buffer[SMACK_LABEL_LEN];
+    const char	*name;
+    int		index;
+    int		ret;
+    ssize_t	size;
+
+    if (from_file == NULL)
+	return;
+
+    for (index = 0 ; index < (int)(sizeof(smack_copied_attributes)
+			      / sizeof(smack_copied_attributes)[0]) ; index++)
+    {
+	/* get the name of the attribute to copy */
+	name = smack_copied_attributes[index];
+
+	/* get the value of the attribute in buffer */
+	size = getxattr((char*)from_file, name, buffer, sizeof(buffer));
+	if (size >= 0)
+	{
+	    /* copy the attribute value of buffer */
+	    ret = setxattr((char*)to_file, name, buffer, (size_t)size, 0);
+	    if (ret < 0)
+	    {
+		MSG_PUTS(_("Could not set security context "));
+		MSG_PUTS(name);
+		MSG_PUTS(_(" for "));
+		msg_outtrans(to_file);
+		msg_putchar('\n');
+	    }
+	}
+	else
+	{
+	    /* what reason of not having the attribute value? */
+	    switch (errno)
+	    {
+		case ENOTSUP:
+		    /* extended attributes aren't supported or enabled */
+		    /* should a message be echoed? not sure... */
+		    return; /* leave because it isn't usefull to continue */
+
+		case ERANGE:
+		default:
+		    /* no enough size OR unexpected error */
+		    MSG_PUTS(_("Could not get security context "));
+		    MSG_PUTS(name);
+		    MSG_PUTS(_(" for "));
+		    msg_outtrans(from_file);
+		    MSG_PUTS(_(". Removing it!\n"));
+		    /* FALLTHROUGH to remove the attribute */
+
+		case ENODATA:
+		    /* no attribute of this name */
+		    ret = removexattr((char*)to_file, name);
+		    /* Silently ignore errors, apparently this happens when
+		     * smack is not actually being used. */
+		    break;
+	    }
+	}
+    }
+}
+#endif /* HAVE_SMACK */
+
 /*
  * Return a pointer to the ACL of file "fname" in allocated memory.
  * Return NULL if the ACL is not available for whatever reason.
@@ -2901,7 +3051,26 @@ executable_file(name)
 
     if (stat((char *)name, &st))
 	return 0;
+#ifdef VMS
+    /* Like on Unix system file can have executable rights but not necessarily
+     * be an executable, but on Unix is not a default for an ordianry file to
+     * have an executable flag - on VMS it is in most cases.
+     * Therefore, this check does not have any sense - let keep us to the
+     * conventions instead:
+     * *.COM and *.EXE files are the executables - the rest are not. This is
+     * not ideal but better then it was.
+     */
+    int vms_executable = 0;
+    if (S_ISREG(st.st_mode) && mch_access((char *)name, X_OK) == 0)
+    {
+	if (strstr(vms_tolower((char*)name),".exe") != NULL
+		|| strstr(vms_tolower((char*)name),".com")!= NULL)
+	    vms_executable = 1;
+    }
+    return vms_executable;
+#else
     return S_ISREG(st.st_mode) && mch_access((char *)name, X_OK) == 0;
+#endif
 }
 
 /*
@@ -2909,8 +3078,9 @@ executable_file(name)
  * Return -1 if unknown.
  */
     int
-mch_can_exe(name)
+mch_can_exe(name, path)
     char_u	*name;
+    char_u	**path;
 {
     char_u	*buf;
     char_u	*p, *e;
@@ -2919,7 +3089,20 @@ mch_can_exe(name)
     /* If it's an absolute or relative path don't need to use $PATH. */
     if (mch_isFullName(name) || (name[0] == '.' && (name[1] == '/'
 				      || (name[1] == '.' && name[2] == '/'))))
-	return executable_file(name);
+    {
+	if (executable_file(name))
+	{
+	    if (path != NULL)
+	    {
+		if (name[0] == '.')
+		    *path = FullName_save(name, TRUE);
+		else
+		    *path = vim_strsave(name);
+	    }
+	    return TRUE;
+	}
+	return FALSE;
+    }
 
     p = (char_u *)getenv("PATH");
     if (p == NULL || *p == NUL)
@@ -2947,7 +3130,16 @@ mch_can_exe(name)
 	STRCAT(buf, name);
 	retval = executable_file(buf);
 	if (retval == 1)
+	{
+	    if (path != NULL)
+	    {
+		if (buf[0] == '.')
+		    *path = FullName_save(buf, TRUE);
+		else
+		    *path = vim_strsave(buf);
+	    }
 	    break;
+	}
 
 	if (*e != ':')
 	    break;
@@ -3339,11 +3531,23 @@ mch_setmouse(on)
     xterm_mouse_vers = use_xterm_mouse();
 
 # ifdef FEAT_MOUSE_URXVT
-    if (ttym_flags == TTYM_URXVT) {
+    if (ttym_flags == TTYM_URXVT)
+    {
 	out_str_nf((char_u *)
 		   (on
 		   ? IF_EB("\033[?1015h", ESC_STR "[?1015h")
 		   : IF_EB("\033[?1015l", ESC_STR "[?1015l")));
+	ison = on;
+    }
+# endif
+
+# ifdef FEAT_MOUSE_SGR
+    if (ttym_flags == TTYM_SGR)
+    {
+	out_str_nf((char_u *)
+		   (on
+		   ? IF_EB("\033[?1006h", ESC_STR "[?1006h")
+		   : IF_EB("\033[?1006l", ESC_STR "[?1006l")));
 	ison = on;
     }
 # endif
@@ -3426,13 +3630,14 @@ mch_setmouse(on)
 	     *	  4 = Windows Cross Hair
 	     *	  5 = Windows UP Arrow
 	     */
-#ifdef JSBTERM_MOUSE_NONADVANCED /* Disables full feedback of pointer movements */
+#  ifdef JSBTERM_MOUSE_NONADVANCED
+	    /* Disables full feedback of pointer movements */
 	    out_str_nf((char_u *)IF_EB("\033[0~ZwLMRK1Q\033\\",
 					 ESC_STR "[0~ZwLMRK1Q" ESC_STR "\\"));
-#else
+#  else
 	    out_str_nf((char_u *)IF_EB("\033[0~ZwLMRK+1Q\033\\",
 					ESC_STR "[0~ZwLMRK+1Q" ESC_STR "\\"));
-#endif
+#  endif
 	    ison = TRUE;
 	}
 	else
@@ -3462,6 +3667,8 @@ mch_setmouse(on)
     void
 check_mouse_termcode()
 {
+    xterm_conflict_mouse = FALSE;
+
 # ifdef FEAT_MOUSE_XTERM
     if (use_xterm_mouse()
 # ifdef FEAT_MOUSE_URXVT
@@ -3506,7 +3713,7 @@ check_mouse_termcode()
 # endif
 
 # ifdef FEAT_MOUSE_JSB
-    /* conflicts with xterm mouse: "\033[" and "\033[M" ??? */
+    /* There is no conflict, but it was disabled for xterm before. */
     if (!use_xterm_mouse()
 #  ifdef FEAT_GUI
 	    && !gui.in_use
@@ -3533,32 +3740,49 @@ check_mouse_termcode()
 # endif
 
 # ifdef FEAT_MOUSE_DEC
-    /* conflicts with xterm mouse: "\033[" and "\033[M" */
+    /* Conflicts with xterm mouse: "\033[" and "\033[M".
+     * Also conflicts with the xterm termresponse, skip this if it was
+     * requested already. */
     if (!use_xterm_mouse()
+#  ifdef FEAT_TERMRESPONSE
+	    && !did_request_esc_sequence()
+#  endif
 #  ifdef FEAT_GUI
 	    && !gui.in_use
 #  endif
 	    )
+    {
 	set_mouse_termcode(KS_DEC_MOUSE, (char_u *)(term_is_8bit(T_NAME)
 		     ? IF_EB("\233", CSI_STR) : IF_EB("\033[", ESC_STR "[")));
+	xterm_conflict_mouse = TRUE;
+    }
     else
 	del_mouse_termcode(KS_DEC_MOUSE);
 # endif
 # ifdef FEAT_MOUSE_PTERM
     /* same as the dec mouse */
     if (!use_xterm_mouse()
+#  ifdef FEAT_TERMRESPONSE
+	    && !did_request_esc_sequence()
+#  endif
 #  ifdef FEAT_GUI
 	    && !gui.in_use
 #  endif
 	    )
+    {
 	set_mouse_termcode(KS_PTERM_MOUSE,
 				      (char_u *) IF_EB("\033[", ESC_STR "["));
+	xterm_conflict_mouse = TRUE;
+    }
     else
 	del_mouse_termcode(KS_PTERM_MOUSE);
 # endif
 # ifdef FEAT_MOUSE_URXVT
     /* same as the dec mouse */
     if (use_xterm_mouse() == 3
+#  ifdef FEAT_TERMRESPONSE
+	    && !did_request_esc_sequence()
+#  endif
 #  ifdef FEAT_GUI
 	    && !gui.in_use
 #  endif
@@ -3573,9 +3797,31 @@ check_mouse_termcode()
 	    mch_setmouse(FALSE);
 	    setmouse();
 	}
+	xterm_conflict_mouse = TRUE;
     }
     else
 	del_mouse_termcode(KS_URXVT_MOUSE);
+# endif
+# ifdef FEAT_MOUSE_SGR
+    /* There is no conflict with xterm mouse */
+    if (use_xterm_mouse() == 4
+#  ifdef FEAT_GUI
+	    && !gui.in_use
+#  endif
+	    )
+    {
+	set_mouse_termcode(KS_SGR_MOUSE, (char_u *)(term_is_8bit(T_NAME)
+		    ? IF_EB("\233<", CSI_STR "<")
+		    : IF_EB("\033[<", ESC_STR "[<")));
+
+	if (*p_mouse != NUL)
+	{
+	    mch_setmouse(FALSE);
+	    setmouse();
+	}
+    }
+    else
+	del_mouse_termcode(KS_SGR_MOUSE);
 # endif
 }
 #endif
@@ -3688,6 +3934,7 @@ mch_get_shellsize()
 
     Rows = rows;
     Columns = columns;
+    limit_screen_size();
     return OK;
 }
 
@@ -3745,7 +3992,7 @@ wait4pid(child, status)
 # endif
 	if (wait_pid == 0)
 	{
-	    /* Wait for 1/100 sec before trying again. */
+	    /* Wait for 10 msec before trying again. */
 	    mch_delay(10L, TRUE);
 	    continue;
 	}
@@ -3802,6 +4049,7 @@ mch_call_shell(cmd, options)
 	settmode(TMODE_COOK);	    /* set to normal mode */
 
 # if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+    save_clipboard();
     loose_clipboard();
 # endif
 
@@ -3875,6 +4123,9 @@ mch_call_shell(cmd, options)
 # ifdef FEAT_TITLE
     resettitle();
 # endif
+# if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
+    restore_clipboard();
+# endif
     return x;
 
 #else /* USE_SYSTEM */	    /* don't use system(), use fork()/exec() */
@@ -3921,10 +4172,6 @@ mch_call_shell(cmd, options)
     out_flush();
     if (options & SHELL_COOKED)
 	settmode(TMODE_COOK);		/* set to normal mode */
-
-# if defined(FEAT_CLIPBOARD) && defined(FEAT_X11)
-    loose_clipboard();
-# endif
 
     /*
      * Do this loop twice:
@@ -4698,6 +4945,11 @@ mch_call_shell(cmd, options)
 		    }
 		    else
 			wait_pid = 0;
+
+# if defined(FEAT_XCLIPBOARD) && defined(FEAT_X11)
+		    /* Handle any X events, e.g. serving the clipboard. */
+		    clip_update();
+# endif
 		}
 finished:
 		p_more = p_more_save;
@@ -4724,6 +4976,45 @@ finished:
 		    close(toshell_fd);
 		close(fromshell_fd);
 	    }
+# if defined(FEAT_XCLIPBOARD) && defined(FEAT_X11)
+	    else
+	    {
+		/*
+		 * Similar to the loop above, but only handle X events, no
+		 * I/O.
+		 */
+		for (;;)
+		{
+		    if (got_int)
+		    {
+			/* CTRL-C sends a signal to the child, we ignore it
+			 * ourselves */
+#  ifdef HAVE_SETSID
+			kill(-pid, SIGINT);
+#  else
+			kill(0, SIGINT);
+#  endif
+			got_int = FALSE;
+		    }
+# ifdef __NeXT__
+		    wait_pid = wait4(pid, &status, WNOHANG, (struct rusage *)0);
+# else
+		    wait_pid = waitpid(pid, &status, WNOHANG);
+# endif
+		    if ((wait_pid == (pid_t)-1 && errno == ECHILD)
+			    || (wait_pid == pid && WIFEXITED(status)))
+		    {
+			wait_pid = pid;
+			break;
+		    }
+
+		    /* Handle any X events, e.g. serving the clipboard. */
+		    clip_update();
+
+		    mch_delay(10L, TRUE);
+		}
+	    }
+# endif
 
 	    /*
 	     * Wait until our child has exited.
@@ -4764,7 +5055,7 @@ finished:
 	    {
 		/* LINTED avoid "bitwise operation on signed value" */
 		retval = WEXITSTATUS(status);
-		if (retval && !emsg_silent)
+		if (retval != 0 && !emsg_silent)
 		{
 		    if (retval == EXEC_FAILED)
 		    {
@@ -4894,6 +5185,7 @@ WaitForChar(msec)
     return avail;
 }
 
+#ifndef VMS
 /*
  * Wait "msec" msec until a character is available from file descriptor "fd".
  * "msec" == 0 will check for characters once.
@@ -5160,6 +5452,10 @@ select_eintr:
 	    FD_SET(ConnectionNumber(xterm_dpy), &rfds);
 	    if (maxfd < ConnectionNumber(xterm_dpy))
 		maxfd = ConnectionNumber(xterm_dpy);
+
+	    /* An event may have already been read but not handled.  In
+	     * particulary, XFlush may cause this. */
+	    xterm_update();
 	}
 # endif
 # ifdef FEAT_MOUSE_GPM
@@ -5180,22 +5476,16 @@ select_eintr:
 		maxfd = xsmp_icefd;
 	}
 # endif
-#ifdef FEAT_NETBEANS_INTG
+# ifdef FEAT_NETBEANS_INTG
 	if (nb_fd != -1)
 	{
 	    FD_SET(nb_fd, &rfds);
 	    if (maxfd < nb_fd)
 		maxfd = nb_fd;
 	}
-#endif
-
-# ifdef OLD_VMS
-	/* Old VMS as v6.2 and older have broken select(). It waits more than
-	 * required. Should not be used */
-	ret = 0;
-# else
-	ret = select(maxfd + 1, &rfds, NULL, &efds, tvp);
 # endif
+
+	ret = select(maxfd + 1, &rfds, NULL, &efds, tvp);
 # ifdef EINTR
 	if (ret == -1 && errno == EINTR)
 	{
@@ -5317,8 +5607,6 @@ select_eintr:
     return (ret > 0);
 }
 
-#ifndef VMS
-
 #ifndef NO_EXPANDPATH
 /*
  * Expand a path into all matching files and/or directories.  Handles "*",
@@ -5431,7 +5719,7 @@ mch_expand_wildcards(num_pat, pat, num_file, file, flags)
 		    continue;
 
 		/* Skip files that are not executable if we check for that. */
-		if (!dir && (flags & EW_EXEC) && !mch_can_exe(p))
+		if (!dir && (flags & EW_EXEC) && !mch_can_exe(p, NULL))
 		    continue;
 
 		if (--files_free == 0)
@@ -5792,7 +6080,7 @@ mch_expand_wildcards(num_pat, pat, num_file, file, flags)
 # if defined(__CYGWIN__) || defined(__CYGWIN32__)
     /* Translate <CR><NL> into <NL>.  Caution, buffer may contain NUL. */
     p = buffer;
-    for (i = 0; i < len; ++i)
+    for (i = 0; i < (int)len; ++i)
 	if (!(buffer[i] == CAR && buffer[i + 1] == NL))
 	    *p++ = buffer[i];
     len = p - buffer;
@@ -5841,7 +6129,7 @@ mch_expand_wildcards(num_pat, pat, num_file, file, flags)
 	{
 	    /* If there is a NUL, set did_find_nul, else set check_spaces */
 	    buffer[len] = NUL;
-	    if (len && (int)STRLEN(buffer) < (int)len - 1)
+	    if (len && (int)STRLEN(buffer) < (int)len)
 		did_find_nul = TRUE;
 	    else
 		check_spaces = TRUE;
@@ -5929,7 +6217,7 @@ mch_expand_wildcards(num_pat, pat, num_file, file, flags)
 	    continue;
 
 	/* Skip files that are not executable if we check for that. */
-	if (!dir && (flags & EW_EXEC) && !mch_can_exe((*file)[i]))
+	if (!dir && (flags & EW_EXEC) && !mch_can_exe((*file)[i], NULL))
 	    continue;
 
 	p = alloc((unsigned)(STRLEN((*file)[i]) + 1 + dir));
@@ -5990,7 +6278,6 @@ save_patterns(num_pat, pat, num_file, file)
     return OK;
 }
 #endif
-
 
 /*
  * Return TRUE if the string "p" contains a wildcard that mch_expandpath() can
@@ -6157,7 +6444,7 @@ gpm_close()
 
 /* Reads gpm event and adds special keys to input buf. Returns length of
  * generated key sequence.
- * This function is made after gui_send_mouse_event
+ * This function is styled after gui_send_mouse_event().
  */
     static int
 mch_gpm_process()
@@ -6769,6 +7056,21 @@ clear_xterm_clip()
 #  endif
 }
 # endif
+
+/*
+ * Catch up with GUI or X events.
+ */
+    static void
+clip_update()
+{
+# ifdef FEAT_GUI
+    if (gui.in_use)
+	gui_mch_update();
+    else
+# endif
+    if (xterm_Shell != (Widget)0)
+	xterm_update();
+}
 
 /*
  * Catch up with any queued X events.  This may put keyboard input into the

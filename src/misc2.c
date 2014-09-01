@@ -31,9 +31,7 @@ virtual_active()
     if (virtual_op != MAYBE)
 	return virtual_op;
     return (ve_flags == VE_ALL
-# ifdef FEAT_VISUAL
 	    || ((ve_flags & VE_BLOCK) && VIsual_active && VIsual_mode == Ctrl_V)
-# endif
 	    || ((ve_flags & VE_INSERT) && (State & INSERT)));
 }
 
@@ -149,9 +147,7 @@ coladvance2(pos, addspaces, finetune, wcol)
 
     one_more = (State & INSERT)
 		    || restart_edit != NUL
-#ifdef FEAT_VISUAL
 		    || (VIsual_active && *p_sel != 'o')
-#endif
 #ifdef FEAT_VIRTUALEDIT
 		    || ((ve_flags & VE_ONEMORE) && wcol < MAXCOL)
 #endif
@@ -487,7 +483,7 @@ get_cursor_rel_lnum(wp, lnum)
 	{
 	    while (lnum > cursor)
 	    {
-		(void)hasFolding(lnum, &lnum, NULL);
+		(void)hasFoldingWin(wp, lnum, &lnum, NULL, TRUE, NULL);
 		/* if lnum and cursor are in the same fold,
 		 * now lnum <= cursor */
 		if (lnum > cursor)
@@ -499,7 +495,7 @@ get_cursor_rel_lnum(wp, lnum)
 	{
 	    while (lnum < cursor)
 	    {
-		(void)hasFolding(lnum, NULL, &lnum);
+		(void)hasFoldingWin(wp, lnum, NULL, &lnum, TRUE, NULL);
 		/* if lnum and cursor are in the same fold,
 		 * now lnum >= cursor */
 		if (lnum < cursor)
@@ -570,9 +566,7 @@ check_cursor_col_win(win)
 	 * - in Visual mode and 'selection' isn't "old"
 	 * - 'virtualedit' is set */
 	if ((State & INSERT) || restart_edit
-#ifdef FEAT_VISUAL
 		|| (VIsual_active && *p_sel != 'o')
-#endif
 #ifdef FEAT_VIRTUALEDIT
 		|| (ve_flags & VE_ONEMORE)
 #endif
@@ -627,9 +621,7 @@ check_cursor()
 adjust_cursor_col()
 {
     if (curwin->w_cursor.col > 0
-# ifdef FEAT_VISUAL
 	    && (!VIsual_active || *p_sel == 'o')
-# endif
 	    && gchar_cursor() == NUL)
 	--curwin->w_cursor.col;
 }
@@ -815,6 +807,7 @@ vim_mem_profile_dump()
 #else
 # define KEEP_ROOM (2 * 8192L)
 #endif
+#define KEEP_ROOM_KB (KEEP_ROOM / 1024L)
 
 /*
  * Note: if unsigned is 16 bits we can only allocate up to 64K with alloc().
@@ -940,7 +933,7 @@ lalloc(size, message)
 	    allocated = 0;
 # endif
 	    /* 3. check for available memory: call mch_avail_mem() */
-	    if (mch_avail_mem(TRUE) < KEEP_ROOM && !releasing)
+	    if (mch_avail_mem(TRUE) < KEEP_ROOM_KB && !releasing)
 	    {
 		free((char *)p);	/* System is low... no go! */
 		p = NULL;
@@ -1109,6 +1102,9 @@ free_all_mem()
     free_all_marks();
     alist_clear(&global_alist);
     free_homedir();
+# if defined(FEAT_CMDL_COMPL)
+    free_users();
+# endif
     free_search_patterns();
     free_old_sub();
     free_last_insert();
@@ -1130,7 +1126,7 @@ free_all_mem()
     /* Free some global vars. */
     vim_free(username);
 # ifdef FEAT_CLIPBOARD
-    vim_free(clip_exclude_prog);
+    vim_regfree(clip_exclude_prog);
 # endif
     vim_free(last_cmdline);
 # ifdef FEAT_CMDHIST
@@ -1365,12 +1361,14 @@ csh_like_shell()
  * Escape a newline, depending on the 'shell' option.
  * When "do_special" is TRUE also replace "!", "%", "#" and things starting
  * with "<" like "<cfile>".
+ * When "do_newline" is FALSE do not escape newline unless it is csh shell.
  * Returns the result in allocated memory, NULL if we have run out.
  */
     char_u *
-vim_strsave_shellescape(string, do_special)
+vim_strsave_shellescape(string, do_special, do_newline)
     char_u	*string;
     int		do_special;
+    int		do_newline;
 {
     unsigned	length;
     char_u	*p;
@@ -1399,7 +1397,8 @@ vim_strsave_shellescape(string, do_special)
 # endif
 	if (*p == '\'')
 	    length += 3;		/* ' => '\'' */
-	if (*p == '\n' || (*p == '!' && (csh_like || do_special)))
+	if ((*p == '\n' && (csh_like || do_newline))
+		|| (*p == '!' && (csh_like || do_special)))
 	{
 	    ++length;			/* insert backslash */
 	    if (csh_like && do_special)
@@ -1450,7 +1449,8 @@ vim_strsave_shellescape(string, do_special)
 		++p;
 		continue;
 	    }
-	    if (*p == '\n' || (*p == '!' && (csh_like || do_special)))
+	    if ((*p == '\n' && (csh_like || do_newline))
+		    || (*p == '!' && (csh_like || do_special)))
 	    {
 		*d++ = '\\';
 		if (csh_like && do_special)
@@ -2087,29 +2087,37 @@ ga_grow(gap, n)
 
 /*
  * For a growing array that contains a list of strings: concatenate all the
- * strings with a separating comma.
+ * strings with a separating "sep".
  * Returns NULL when out of memory.
  */
     char_u *
-ga_concat_strings(gap)
+ga_concat_strings(gap, sep)
     garray_T *gap;
+    char     *sep;
 {
     int		i;
     int		len = 0;
+    int		sep_len = (int)STRLEN(sep);
     char_u	*s;
+    char_u	*p;
 
     for (i = 0; i < gap->ga_len; ++i)
-	len += (int)STRLEN(((char_u **)(gap->ga_data))[i]) + 1;
+	len += (int)STRLEN(((char_u **)(gap->ga_data))[i]) + sep_len;
 
     s = alloc(len + 1);
     if (s != NULL)
     {
 	*s = NUL;
+	p = s;
 	for (i = 0; i < gap->ga_len; ++i)
 	{
-	    if (*s != NUL)
-		STRCAT(s, ",");
-	    STRCAT(s, ((char_u **)(gap->ga_data))[i]);
+	    if (p != s)
+	    {
+		STRCPY(p, sep);
+		p += sep_len;
+	    }
+	    STRCPY(p, ((char_u **)(gap->ga_data))[i]);
+	    p += STRLEN(p);
 	}
     }
     return s;
@@ -2428,6 +2436,9 @@ static struct key_name_entry
 #endif
 #ifdef FEAT_MOUSE_URXVT
     {K_URXVT_MOUSE,	(char_u *)"UrxvtMouse"},
+#endif
+#ifdef FEAT_MOUSE_SGR
+    {K_SGR_MOUSE,	(char_u *)"SgrMouse"},
 #endif
     {K_LEFTMOUSE,	(char_u *)"LeftMouse"},
     {K_LEFTMOUSE_NM,	(char_u *)"LeftMouseNM"},
@@ -2900,7 +2911,7 @@ extract_modifiers(key, modp)
     int	modifiers = *modp;
 
 #ifdef MACOS
-    /* Command-key really special, No fancynest */
+    /* Command-key really special, no fancynest */
     if (!(modifiers & MOD_MASK_CMD))
 #endif
     if ((modifiers & MOD_MASK_SHIFT) && ASCII_ISALPHA(key))
@@ -2927,7 +2938,7 @@ extract_modifiers(key, modp)
 	    key = K_ZERO;
     }
 #ifdef MACOS
-    /* Command-key really special, No fancynest */
+    /* Command-key really special, no fancynest */
     if (!(modifiers & MOD_MASK_CMD))
 #endif
     if ((modifiers & MOD_MASK_ALT) && key < 0x80
@@ -3279,17 +3290,14 @@ get_real_state()
 {
     if (State & NORMAL)
     {
-#ifdef FEAT_VISUAL
 	if (VIsual_active)
 	{
 	    if (VIsual_select)
 		return SELECTMODE;
 	    return VISUAL;
 	}
-	else
-#endif
-	    if (finish_op)
-		return OP_PENDING;
+	else if (finish_op)
+	    return OP_PENDING;
     }
     return State;
 }
@@ -3727,7 +3735,6 @@ get_shape_idx(mouse)
     }
     if (finish_op)
 	return SHAPE_IDX_O;
-#ifdef FEAT_VISUAL
     if (VIsual_active)
     {
 	if (*p_sel == 'e')
@@ -3735,7 +3742,6 @@ get_shape_idx(mouse)
 	else
 	    return SHAPE_IDX_V;
     }
-#endif
     return SHAPE_IDX_N;
 }
 #endif
@@ -3853,7 +3859,7 @@ static ulg keys[3]; /* keys defining the pseudo-random sequence */
     ush temp; \
  \
     temp = (ush)keys[2] | 2; \
-    t = (int)(((unsigned)(temp * (temp ^ 1)) >> 8) & 0xff); \
+    t = (int)(((unsigned)(temp * (temp ^ 1U)) >> 8) & 0xff); \
 }
 
 /*
@@ -3995,7 +4001,7 @@ crypt_decode(ptr, len)
 	    ush temp;
 
 	    temp = (ush)keys[2] | 2;
-	    temp = (int)(((unsigned)(temp * (temp ^ 1)) >> 8) & 0xff);
+	    temp = (int)(((unsigned)(temp * (temp ^ 1U)) >> 8) & 0xff);
 	    UPDATE_KEYS_ZIP(*p ^= temp);
 	}
     else
@@ -4672,8 +4678,60 @@ vim_findfile_init(path, filename, stopdirs, level, free_visited, find_what,
     }
     STRCPY(ff_expand_buffer, search_ctx->ffsc_start_dir);
     add_pathsep(ff_expand_buffer);
-    STRCAT(ff_expand_buffer, search_ctx->ffsc_fix_path);
-    add_pathsep(ff_expand_buffer);
+    {
+	int    eb_len = (int)STRLEN(ff_expand_buffer);
+	char_u *buf = alloc(eb_len
+				+ (int)STRLEN(search_ctx->ffsc_fix_path) + 1);
+
+	STRCPY(buf, ff_expand_buffer);
+	STRCPY(buf + eb_len, search_ctx->ffsc_fix_path);
+	if (mch_isdir(buf))
+	{
+	    STRCAT(ff_expand_buffer, search_ctx->ffsc_fix_path);
+	    add_pathsep(ff_expand_buffer);
+	}
+#ifdef FEAT_PATH_EXTRA
+	else
+	{
+	    char_u *p =  gettail(search_ctx->ffsc_fix_path);
+	    char_u *wc_path = NULL;
+	    char_u *temp = NULL;
+	    int    len = 0;
+
+	    if (p > search_ctx->ffsc_fix_path)
+	    {
+		len = (int)(p - search_ctx->ffsc_fix_path) - 1;
+		STRNCAT(ff_expand_buffer, search_ctx->ffsc_fix_path, len);
+		add_pathsep(ff_expand_buffer);
+	    }
+	    else
+		len = (int)STRLEN(search_ctx->ffsc_fix_path);
+
+	    if (search_ctx->ffsc_wc_path != NULL)
+	    {
+		wc_path = vim_strsave(search_ctx->ffsc_wc_path);
+		temp = alloc((int)(STRLEN(search_ctx->ffsc_wc_path)
+				 + STRLEN(search_ctx->ffsc_fix_path + len)
+				 + 1));
+	    }
+
+	    if (temp == NULL || wc_path == NULL)
+	    {
+		vim_free(buf);
+		vim_free(temp);
+		vim_free(wc_path);
+		goto error_return;
+	    }
+
+	    STRCPY(temp, search_ctx->ffsc_fix_path + len);
+	    STRCAT(temp, search_ctx->ffsc_wc_path);
+	    vim_free(search_ctx->ffsc_wc_path);
+	    vim_free(wc_path);
+	    search_ctx->ffsc_wc_path = temp;
+	}
+#endif
+	vim_free(buf);
+    }
 
     sptr = ff_create_stack_element(ff_expand_buffer,
 #ifdef FEAT_PATH_EXTRA
@@ -5001,8 +5059,8 @@ vim_findfile(search_ctx_arg)
 #endif
 		{
 		    /*
-		     * we don't have further wildcards to expand, so we have to
-		     * check for the final file now
+		     * We don't have further wildcards to expand, so we have to
+		     * check for the final file now.
 		     */
 		    for (i = stackp->ffs_filearray_cur;
 					  i < stackp->ffs_filearray_size; ++i)
@@ -5345,6 +5403,8 @@ ff_wc_equal(s1, s2)
     char_u	*s2;
 {
     int		i;
+    int		prev1 = NUL;
+    int		prev2 = NUL;
 
     if (s1 == s2)
 	return TRUE;
@@ -5355,22 +5415,16 @@ ff_wc_equal(s1, s2)
     if (STRLEN(s1) != STRLEN(s2))
 	return FAIL;
 
-    for (i = 0; s1[i] != NUL && s2[i] != NUL; i++)
+    for (i = 0; s1[i] != NUL && s2[i] != NUL; i += MB_PTR2LEN(s1 + i))
     {
-	if (s1[i] != s2[i]
-#ifdef CASE_INSENSITIVE_FILENAME
-		&& TOUPPER_LOC(s1[i]) != TOUPPER_LOC(s2[i])
-#endif
-		)
-	{
-	    if (i >= 2)
-		if (s1[i-1] == '*' && s1[i-2] == '*')
-		    continue;
-		else
-		    return FAIL;
-	    else
-		return FAIL;
-	}
+	int c1 = PTR2CHAR(s1 + i);
+	int c2 = PTR2CHAR(s2 + i);
+
+	if ((p_fic ? MB_TOLOWER(c1) != MB_TOLOWER(c2) : c1 != c2)
+		&& (prev1 != '*' || prev2 != '*'))
+	    return FAIL;
+	prev2 = prev1;
+	prev1 = c1;
     }
     return TRUE;
 }
@@ -6096,57 +6150,59 @@ pathcmp(p, q, maxlen)
     int maxlen;
 {
     int		i;
+    int		c1, c2;
     const char	*s = NULL;
 
-    for (i = 0; maxlen < 0 || i < maxlen; ++i)
+    for (i = 0; maxlen < 0 || i < maxlen; i += MB_PTR2LEN((char_u *)p + i))
     {
+	c1 = PTR2CHAR((char_u *)p + i);
+	c2 = PTR2CHAR((char_u *)q + i);
+
 	/* End of "p": check if "q" also ends or just has a slash. */
-	if (p[i] == NUL)
+	if (c1 == NUL)
 	{
-	    if (q[i] == NUL)  /* full match */
+	    if (c2 == NUL)  /* full match */
 		return 0;
 	    s = q;
 	    break;
 	}
 
 	/* End of "q": check if "p" just has a slash. */
-	if (q[i] == NUL)
+	if (c2 == NUL)
 	{
 	    s = p;
 	    break;
 	}
 
-	if (
-#ifdef CASE_INSENSITIVE_FILENAME
-		TOUPPER_LOC(p[i]) != TOUPPER_LOC(q[i])
-#else
-		p[i] != q[i]
-#endif
+	if ((p_fic ? MB_TOUPPER(c1) != MB_TOUPPER(c2) : c1 != c2)
 #ifdef BACKSLASH_IN_FILENAME
 		/* consider '/' and '\\' to be equal */
-		&& !((p[i] == '/' && q[i] == '\\')
-		    || (p[i] == '\\' && q[i] == '/'))
+		&& !((c1 == '/' && c2 == '\\')
+		    || (c1 == '\\' && c2 == '/'))
 #endif
 		)
 	{
-	    if (vim_ispathsep(p[i]))
+	    if (vim_ispathsep(c1))
 		return -1;
-	    if (vim_ispathsep(q[i]))
+	    if (vim_ispathsep(c2))
 		return 1;
-	    return ((char_u *)p)[i] - ((char_u *)q)[i];	    /* no match */
+	    return p_fic ? MB_TOUPPER(c1) - MB_TOUPPER(c2)
+		    : c1 - c2;  /* no match */
 	}
     }
     if (s == NULL)	/* "i" ran into "maxlen" */
 	return 0;
 
+    c1 = PTR2CHAR((char_u *)s + i);
+    c2 = PTR2CHAR((char_u *)s + i + MB_PTR2LEN((char_u *)s + i));
     /* ignore a trailing slash, but not "//" or ":/" */
-    if (s[i + 1] == NUL
+    if (c2 == NUL
 	    && i > 0
 	    && !after_pathsep((char_u *)s, (char_u *)s + i)
 #ifdef BACKSLASH_IN_FILENAME
-	    && (s[i] == '/' || s[i] == '\\')
+	    && (c1 == '/' || c1 == '\\')
 #else
-	    && s[i] == '/'
+	    && c1 == '/'
 #endif
        )
 	return 0;   /* match with trailing slash */
@@ -6439,13 +6495,15 @@ get3c(fd)
 get4c(fd)
     FILE	*fd;
 {
-    int		n;
+    /* Use unsigned rather than int otherwise result is undefined
+     * when left-shift sets the MSB. */
+    unsigned	n;
 
-    n = getc(fd);
-    n = (n << 8) + getc(fd);
-    n = (n << 8) + getc(fd);
-    n = (n << 8) + getc(fd);
-    return n;
+    n = (unsigned)getc(fd);
+    n = (n << 8) + (unsigned)getc(fd);
+    n = (n << 8) + (unsigned)getc(fd);
+    n = (n << 8) + (unsigned)getc(fd);
+    return (int)n;
 }
 
 /*

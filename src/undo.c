@@ -83,6 +83,7 @@
 
 #include "vim.h"
 
+static long get_undolevel __ARGS((void));
 static void u_unch_branch __ARGS((u_header_T *uhp));
 static u_entry_T *u_get_headentry __ARGS((void));
 static void u_getbot __ARGS((void));
@@ -216,6 +217,7 @@ u_check(int newhead_may_be_NULL)
 
 /*
  * Save the current line for both the "u" and "U" command.
+ * Careful: may trigger autocommands that reload the buffer.
  * Returns OK or FAIL.
  */
     int
@@ -238,8 +240,9 @@ u_save(top, bot)
     if (undo_off)
 	return OK;
 
-    if (top > curbuf->b_ml.ml_line_count ||
-			    top >= bot || bot > curbuf->b_ml.ml_line_count + 1)
+    if (top > curbuf->b_ml.ml_line_count
+	    || top >= bot
+	    || bot > curbuf->b_ml.ml_line_count + 1)
 	return FALSE;	/* rely on caller to do error messages */
 
     if (top + 2 == bot)
@@ -334,6 +337,17 @@ undo_allowed()
 }
 
 /*
+ * Get the undolevle value for the current buffer.
+ */
+    static long
+get_undolevel()
+{
+    if (curbuf->b_p_ul == NO_LOCAL_UNDOLEVEL)
+	return p_ul;
+    return curbuf->b_p_ul;
+}
+
+/*
  * Common code for various ways to save text before a change.
  * "top" is the line above the first changed line.
  * "bot" is the line below the last changed line.
@@ -395,7 +409,7 @@ u_savecommon(top, bot, newbot, reload)
 	{
 	    /* This happens when the FileChangedRO autocommand changes the
 	     * file in a way it becomes shorter. */
-	    EMSG(_("E834: Line count changed unexpectedly"));
+	    EMSG(_("E881: Line count changed unexpectedly"));
 	    return FAIL;
 	}
 #endif
@@ -417,7 +431,7 @@ u_savecommon(top, bot, newbot, reload)
 	curbuf->b_new_change = TRUE;
 #endif
 
-	if (p_ul >= 0)
+	if (get_undolevel() >= 0)
 	{
 	    /*
 	     * Make a new header entry.  Do this first so that we don't mess
@@ -447,7 +461,8 @@ u_savecommon(top, bot, newbot, reload)
 	/*
 	 * free headers to keep the size right
 	 */
-	while (curbuf->b_u_numhead > p_ul && curbuf->b_u_oldhead != NULL)
+	while (curbuf->b_u_numhead > get_undolevel()
+					       && curbuf->b_u_oldhead != NULL)
 	{
 	    u_header_T	    *uhfree = curbuf->b_u_oldhead;
 
@@ -517,9 +532,7 @@ u_savecommon(top, bot, newbot, reload)
 
 	/* save named marks and Visual marks for undo */
 	mch_memmove(uhp->uh_namedm, curbuf->b_namedm, sizeof(pos_T) * NMARKS);
-#ifdef FEAT_VISUAL
 	uhp->uh_visual = curbuf->b_visual;
-#endif
 
 	curbuf->b_u_newhead = uhp;
 	if (curbuf->b_u_oldhead == NULL)
@@ -528,7 +541,7 @@ u_savecommon(top, bot, newbot, reload)
     }
     else
     {
-	if (p_ul < 0)		/* no undo at all */
+	if (get_undolevel() < 0)	/* no undo at all */
 	    return OK;
 
 	/*
@@ -775,9 +788,20 @@ u_get_undo_file_name(buf_ffname, reading)
 	    if (undo_file_name == NULL)
 		break;
 	    p = gettail(undo_file_name);
+#ifdef VMS
+	    /* VMS can not handle more than one dot in the filenames
+	     * use "dir/name" -> "dir/_un_name" - add _un_
+	     * at the beginning to keep the extension */
+	    mch_memmove(p + 4,  p, STRLEN(p) + 1);
+	    mch_memmove(p, "_un_", 4);
+
+#else
+	    /* Use same directory as the ffname,
+	     * "dir/name" -> "dir/.name.un~" */
 	    mch_memmove(p + 1, p, STRLEN(p) + 1);
 	    *p = '.';
 	    STRCAT(p, ".un~");
+#endif
 	}
 	else
 	{
@@ -988,16 +1012,7 @@ serialize_uhp(fp, buf, uhp)
     /* Assume NMARKS will stay the same. */
     for (i = 0; i < NMARKS; ++i)
 	serialize_pos(uhp->uh_namedm[i], fp);
-#ifdef FEAT_VISUAL
     serialize_visualinfo(&uhp->uh_visual, fp);
-#else
-    {
-	visualinfo_T info;
-
-	memset(&info, 0, sizeof(visualinfo_T));
-	serialize_visualinfo(&info, fp);
-    }
-#endif
     put_time(fp, uhp->uh_time);
 
     /* Optional fields. */
@@ -1056,14 +1071,7 @@ unserialize_uhp(fp, file_name)
     uhp->uh_flags = get2c(fp);
     for (i = 0; i < NMARKS; ++i)
 	unserialize_pos(&uhp->uh_namedm[i], fp);
-#ifdef FEAT_VISUAL
     unserialize_visualinfo(&uhp->uh_visual, fp);
-#else
-    {
-	visualinfo_T info;
-	unserialize_visualinfo(&info, fp);
-    }
-#endif
     uhp->uh_time = get8ctime(fp);
 
     /* Optional fields. */
@@ -1447,7 +1455,7 @@ u_write_undo(name, forceit, buf, hash)
 # endif
        )
 	mch_setperm(file_name, (perm & 0707) | ((perm & 07) << 3));
-# ifdef HAVE_SELINUX
+# if defined(HAVE_SELINUX) || defined(HAVE_SMACK)
     if (buf->b_ffname != NULL)
 	mch_copy_sec(buf->b_ffname, file_name);
 # endif
@@ -1512,8 +1520,10 @@ u_write_undo(name, forceit, buf, hash)
 	write_ok = TRUE;
 #ifdef U_DEBUG
     if (headers_written != buf->b_u_numhead)
-	EMSG3("Written %ld headers, but numhead is %ld",
-					   headers_written, buf->b_u_numhead);
+    {
+	EMSGN("Written %ld headers, ...", headers_written);
+	EMSGN("... but numhead is %ld", buf->b_u_numhead);
+    }
 #endif
 
 write_error:
@@ -1600,10 +1610,11 @@ u_read_undo(name, hash, orig_name)
 
 #ifdef UNIX
 	/* For safety we only read an undo file if the owner is equal to the
-	 * owner of the text file. */
+	 * owner of the text file or equal to the current user. */
 	if (mch_stat((char *)orig_name, &st_orig) >= 0
 		&& mch_stat((char *)file_name, &st_undo) >= 0
-		&& st_orig.st_uid != st_undo.st_uid)
+		&& st_orig.st_uid != st_undo.st_uid
+		&& st_undo.st_uid != getuid())
 	{
 	    if (p_verbose > 0)
 	    {
@@ -1967,7 +1978,7 @@ u_doit(startcount)
 	{
 	    if (curbuf->b_u_curhead == NULL)		/* first undo */
 		curbuf->b_u_curhead = curbuf->b_u_newhead;
-	    else if (p_ul > 0)				/* multi level undo */
+	    else if (get_undolevel() > 0)		/* multi level undo */
 		/* get next undo */
 		curbuf->b_u_curhead = curbuf->b_u_curhead->uh_next.ptr;
 	    /* nothing to undo */
@@ -1988,7 +1999,7 @@ u_doit(startcount)
 	}
 	else
 	{
-	    if (curbuf->b_u_curhead == NULL || p_ul <= 0)
+	    if (curbuf->b_u_curhead == NULL || get_undolevel() <= 0)
 	    {
 		beep_flush();	/* nothing to redo */
 		if (count == startcount - 1)
@@ -2377,9 +2388,7 @@ u_undoredo(undo)
     int		old_flags;
     int		new_flags;
     pos_T	namedm[NMARKS];
-#ifdef FEAT_VISUAL
     visualinfo_T visualinfo;
-#endif
     int		empty_buffer;		    /* buffer became empty */
     u_header_T	*curhead = curbuf->b_u_curhead;
 
@@ -2401,9 +2410,7 @@ u_undoredo(undo)
      * save marks before undo/redo
      */
     mch_memmove(namedm, curbuf->b_namedm, sizeof(pos_T) * NMARKS);
-#ifdef FEAT_VISUAL
     visualinfo = curbuf->b_visual;
-#endif
     curbuf->b_op_start.lnum = curbuf->b_ml.ml_line_count;
     curbuf->b_op_start.col = 0;
     curbuf->b_op_end.lnum = 0;
@@ -2573,13 +2580,11 @@ u_undoredo(undo)
 	    curbuf->b_namedm[i] = curhead->uh_namedm[i];
 	    curhead->uh_namedm[i] = namedm[i];
 	}
-#ifdef FEAT_VISUAL
     if (curhead->uh_visual.vi_start.lnum != 0)
     {
 	curbuf->b_visual = curhead->uh_visual;
 	curhead->uh_visual = visualinfo;
     }
-#endif
 
     /*
      * If the cursor is only off by one line, put it at the same position as
@@ -2746,7 +2751,7 @@ u_sync(force)
     if (im_is_preediting())
 	return;		    /* XIM is busy, don't break an undo sequence */
 #endif
-    if (p_ul < 0)
+    if (get_undolevel() < 0)
 	curbuf->b_u_synced = TRUE;  /* no entries, nothing to do */
     else
     {
@@ -2880,11 +2885,8 @@ u_add_time(buf, buflen, tt)
 	if (time(NULL) - tt < (60L * 60L * 12L))
 	    /* within 12 hours */
 	    (void)strftime((char *)buf, buflen, "%H:%M:%S", curtime);
-	else if (time(NULL) - tt < (60L * 60L * 24L * 180L))
-	    /* within 6 months */
-	    (void)strftime((char *)buf, buflen, "%m/%d %H:%M:%S", curtime);
 	else
-	    /* long ago */
+	    /* longer ago */
 	    (void)strftime((char *)buf, buflen, "%Y/%m/%d %H:%M:%S", curtime);
     }
     else
@@ -2909,7 +2911,7 @@ ex_undojoin(eap)
     }
     if (!curbuf->b_u_synced)
 	return;		    /* already unsynced */
-    if (p_ul < 0)
+    if (get_undolevel() < 0)
 	return;		    /* no entries, nothing to do */
     else
     {
@@ -3106,7 +3108,8 @@ u_freebranch(buf, uhp, uhpp)
      * all the pointers. */
     if (uhp == buf->b_u_oldhead)
     {
-	u_freeheader(buf, uhp, uhpp);
+	while (buf->b_u_oldhead != NULL)
+	    u_freeheader(buf, buf->b_u_oldhead, uhpp);
 	return;
     }
 

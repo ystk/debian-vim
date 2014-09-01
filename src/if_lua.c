@@ -199,9 +199,9 @@ int (*dll_lua_pcall) (lua_State *L, int nargs, int nresults, int errfunc);
 lua_Number (*dll_lua_tonumberx) (lua_State *L, int idx, int *isnum);
 lua_Integer (*dll_lua_tointegerx) (lua_State *L, int idx, int *isnum);
 void (*dll_lua_callk) (lua_State *L, int nargs, int nresults, int ctx,
-        lua_CFunction k);
+	lua_CFunction k);
 int (*dll_lua_pcallk) (lua_State *L, int nargs, int nresults, int errfunc,
-        int ctx, lua_CFunction k);
+	int ctx, lua_CFunction k);
 void (*dll_lua_getglobal) (lua_State *L, const char *var);
 void (*dll_lua_setglobal) (lua_State *L, const char *var);
 #endif
@@ -394,7 +394,7 @@ lua_enabled(int verbose)
 luaL_typeerror (lua_State *L, int narg, const char *tname)
 {
     const char *msg = lua_pushfstring(L, "%s expected, got %s",
-            tname, luaL_typename(L, narg));
+	    tname, luaL_typename(L, narg));
     return luaL_argerror(L, narg, msg);
 }
 #endif
@@ -464,7 +464,8 @@ luaV_pushtypval(lua_State *L, typval_T *tv)
     switch (tv->v_type)
     {
 	case VAR_STRING:
-	    lua_pushstring(L, (char *) tv->vval.v_string);
+	    lua_pushstring(L, tv->vval.v_string == NULL
+					    ? "" : (char *)tv->vval.v_string);
 	    break;
 	case VAR_NUMBER:
 	    lua_pushinteger(L, (int) tv->vval.v_number);
@@ -646,141 +647,6 @@ luaV_msgfunc(lua_State *L, msgfunc_T mf)
 	return 1; \
     }
 
-
-/* adapted from eval.c */
-
-#define listitem_alloc() (listitem_T *)alloc(sizeof(listitem_T))
-
-    static listitem_T *
-list_find (list_T *l, long n)
-{
-    listitem_T *li;
-    if (l == NULL || n < -l->lv_len || n >= l->lv_len)
-	return NULL;
-    if (n < 0) /* search backward? */
-	for (li = l->lv_last; n < -1; li = li->li_prev)
-	    n++;
-    else /* search forward */
-	for (li = l->lv_first; n > 0; li = li->li_next)
-	    n--;
-    return li;
-}
-
-    static void
-list_remove (list_T *l, listitem_T *li)
-{
-    listwatch_T *lw;
-    --l->lv_len;
-    /* fix watchers */
-    for (lw = l->lv_watch; lw != NULL; lw = lw->lw_next)
-	if (lw->lw_item == li)
-	    lw->lw_item = li->li_next;
-    /* fix list pointers */
-    if (li->li_next == NULL) /* last? */
-	l->lv_last = li->li_prev;
-    else
-	li->li_next->li_prev = li->li_prev;
-    if (li->li_prev == NULL) /* first? */
-	l->lv_first = li->li_next;
-    else
-	li->li_prev->li_next = li->li_next;
-    l->lv_idx_item = NULL;
-}
-
-    static void
-list_append(list_T *l, listitem_T *item)
-{
-    if (l->lv_last == NULL) /* empty list? */
-	l->lv_first = item;
-    else
-	l->lv_last->li_next = item;
-    item->li_prev = l->lv_last;
-    item->li_next = NULL;
-    l->lv_last = item;
-    ++l->lv_len;
-}
-
-    static int
-list_insert_tv(list_T *l, typval_T *tv, listitem_T *item)
-{
-    listitem_T	*ni = listitem_alloc();
-
-    if (ni == NULL)
-	return FAIL;
-    copy_tv(tv, &ni->li_tv);
-    if (item == NULL)
-	list_append(l, ni);
-    else
-    {
-	ni->li_prev = item->li_prev;
-	ni->li_next = item;
-	if (item->li_prev == NULL)
-	{
-	    l->lv_first = ni;
-	    ++l->lv_idx;
-	}
-	else
-	{
-	    item->li_prev->li_next = ni;
-	    l->lv_idx_item = NULL;
-	}
-	item->li_prev = ni;
-	++l->lv_len;
-    }
-    return OK;
-}
-
-/* set references */
-
-static void set_ref_in_tv (typval_T *tv, int copyID);
-
-    static void
-set_ref_in_dict(dict_T *d, int copyID)
-{
-    hashtab_T *ht = &d->dv_hashtab;
-    int n = ht->ht_used;
-    hashitem_T *hi;
-    for (hi = ht->ht_array; n > 0; ++hi)
-	if (!HASHITEM_EMPTY(hi))
-	{
-	    dictitem_T *di = dict_lookup(hi);
-	    set_ref_in_tv(&di->di_tv, copyID);
-	    --n;
-	}
-}
-
-    static void
-set_ref_in_list(list_T *l, int copyID)
-{
-    listitem_T *li;
-    for (li = l->lv_first; li != NULL; li = li->li_next)
-	set_ref_in_tv(&li->li_tv, copyID);
-}
-
-    static void
-set_ref_in_tv(typval_T *tv, int copyID)
-{
-    if (tv->v_type == VAR_LIST)
-    {
-	list_T *l = tv->vval.v_list;
-	if (l != NULL && l->lv_copyID != copyID)
-	{
-	    l->lv_copyID = copyID;
-	    set_ref_in_list(l, copyID);
-	}
-    }
-    else if (tv->v_type == VAR_DICT)
-    {
-	dict_T *d = tv->vval.v_dict;
-	if (d != NULL && d->dv_copyID != copyID)
-	{
-	    d->dv_copyID = copyID;
-	    set_ref_in_dict(d, copyID);
-	}
-    }
-}
-
-
 /* =======   List type   ======= */
 
     static luaV_List *
@@ -797,13 +663,6 @@ luaV_newlist (lua_State *L, list_T *lis)
 
 luaV_pushtype(list_T, list, luaV_List)
 luaV_type_tostring(list, LUAVIM_LIST)
-
-    static int
-luaV_list_gc (lua_State *L)
-{
-    list_unref(luaV_unbox(L, luaV_List, 1));
-    return 0;
-}
 
     static int
 luaV_list_len (lua_State *L)
@@ -850,8 +709,7 @@ luaV_list_index (lua_State *L)
     {
 	const char *s = lua_tostring(L, 2);
 	if (strncmp(s, "add", 3) == 0
-		|| strncmp(s, "insert", 6) == 0
-		|| strncmp(s, "extend", 6) == 0)
+		|| strncmp(s, "insert", 6) == 0)
 	{
 	    lua_getmetatable(L, 1);
 	    lua_getfield(L, -1, s);
@@ -876,7 +734,7 @@ luaV_list_newindex (lua_State *L)
     if (li == NULL) return 0;
     if (lua_isnil(L, 3)) /* remove? */
     {
-	list_remove(l, li);
+	vimlist_remove(l, li, li);
 	clear_tv(&li->li_tv);
 	vim_free(li);
     }
@@ -886,6 +744,7 @@ luaV_list_newindex (lua_State *L)
 	luaV_totypval(L, 3, &v);
 	clear_tv(&li->li_tv);
 	copy_tv(&v, &li->li_tv);
+	clear_tv(&v);
     }
     return 0;
 }
@@ -895,18 +754,17 @@ luaV_list_add (lua_State *L)
 {
     luaV_List *lis = luaV_checkudata(L, 1, LUAVIM_LIST);
     list_T *l = (list_T *) luaV_checkcache(L, (void *) *lis);
-    listitem_T *li;
+    typval_T v;
     if (l->lv_lock)
 	luaL_error(L, "list is locked");
-    li = listitem_alloc();
-    if (li != NULL)
+    lua_settop(L, 2);
+    luaV_totypval(L, 2, &v);
+    if (list_append_tv(l, &v) == FAIL)
     {
-	typval_T v;
-	lua_settop(L, 2);
-	luaV_totypval(L, 2, &v);
-	copy_tv(&v, &li->li_tv);
-	list_append(l, li);
+	clear_tv(&v);
+	luaL_error(L, "Failed to add item to list");
     }
+    clear_tv(&v);
     lua_settop(L, 1);
     return 1;
 }
@@ -929,14 +787,18 @@ luaV_list_insert (lua_State *L)
     }
     lua_settop(L, 2);
     luaV_totypval(L, 2, &v);
-    list_insert_tv(l, &v, li);
+    if (list_insert_tv(l, &v, li) == FAIL)
+    {
+	clear_tv(&v);
+	luaL_error(L, "Failed to add item to list");
+    }
+    clear_tv(&v);
     lua_settop(L, 1);
     return 1;
 }
 
 static const luaL_Reg luaV_List_mt[] = {
     {"__tostring", luaV_list_tostring},
-    {"__gc", luaV_list_gc},
     {"__len", luaV_list_len},
     {"__call", luaV_list_call},
     {"__index", luaV_list_index},
@@ -965,13 +827,6 @@ luaV_pushtype(dict_T, dict, luaV_Dict)
 luaV_type_tostring(dict, LUAVIM_DICT)
 
     static int
-luaV_dict_gc (lua_State *L)
-{
-    dict_unref(luaV_unbox(L, luaV_Dict, 1));
-    return 0;
-}
-
-    static int
 luaV_dict_len (lua_State *L)
 {
     dict_T *d = luaV_unbox(L, luaV_Dict, 1);
@@ -980,8 +835,9 @@ luaV_dict_len (lua_State *L)
 }
 
     static int
-luaV_dict_iter (lua_State *L)
+luaV_dict_iter (lua_State *L UNUSED)
 {
+#ifdef FEAT_EVAL
     hashitem_T *hi = (hashitem_T *) lua_touserdata(L, lua_upvalueindex(2));
     int n = lua_tointeger(L, lua_upvalueindex(3));
     dictitem_T *di;
@@ -995,6 +851,9 @@ luaV_dict_iter (lua_State *L)
     lua_pushinteger(L, n - 1);
     lua_replace(L, lua_upvalueindex(3));
     return 2;
+#else
+    return 0;
+#endif
 }
 
     static int
@@ -1054,13 +913,13 @@ luaV_dict_newindex (lua_State *L)
 	typval_T v;
 	luaV_totypval(L, 3, &v);
 	copy_tv(&v, &di->di_tv);
+	clear_tv(&v);
     }
     return 0;
 }
 
 static const luaL_Reg luaV_Dict_mt[] = {
     {"__tostring", luaV_dict_tostring},
-    {"__gc", luaV_dict_gc},
     {"__len", luaV_dict_len},
     {"__call", luaV_dict_call},
     {"__index", luaV_dict_index},
@@ -1470,6 +1329,7 @@ luaV_eval(lua_State *L)
     typval_T *tv = eval_expr((char_u *) luaL_checkstring(L, 1), NULL);
     if (tv == NULL) luaL_error(L, "invalid expression");
     luaV_pushtypval(L, tv);
+    free_tv(tv);
     return 1;
 }
 
@@ -1682,7 +1542,7 @@ luaV_setref (lua_State *L)
 	    tv.vval.v_dict = (dict_T *) lua_touserdata(L, 4); /* key */
 	}
 	lua_pop(L, 2); /* metatable and value */
-	set_ref_in_tv(&tv, copyID);
+	set_ref_in_item(&tv, copyID);
     }
     return 0;
 }

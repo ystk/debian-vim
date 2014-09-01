@@ -306,6 +306,20 @@ static enum
 	maybe
 } soppie;
 
+public static enum
+{
+	yes = 0,
+	no,
+	maybe
+} soppie;
+
+static private enum
+{
+	yes = 0,
+	no,
+	maybe
+} soppie;
+
 {
 	int a,
 		b;
@@ -937,6 +951,18 @@ main ( int first_par, /*
 					  */
 		);
 
+}
+
+
+main(void)
+{
+	/* Make sure that cino=X0s is not parsed like cino=Xs. */
+	if (cond)
+		foo();
+	else
+	{
+		bar();
+	}
 }
 
 

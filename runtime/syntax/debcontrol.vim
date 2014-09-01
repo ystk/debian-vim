@@ -3,7 +3,7 @@
 " Maintainer:  Debian Vim Maintainers <pkg-vim-maintainers@lists.alioth.debian.org>
 " Former Maintainers: Gerfried Fuchs <alfie@ist.org>
 "                     Wichert Akkerman <wakkerma@debian.org>
-" Last Change: 2011 Dec 09
+" Last Change: 2013 Oct 28
 " URL: http://anonscm.debian.org/hg/pkg-vim/vim/raw-file/unstable/runtime/syntax/debcontrol.vim
 
 " Standard syntax initialization
@@ -24,7 +24,7 @@ syn match debControlComma ", *"
 syn match debControlSpace " "
 
 " Define some common expressions we can use later on
-syn match debcontrolArchitecture contained "\%(all\|linux-any\|\%(any-\)\=\%(alpha\|amd64\|arm\%(e[bl]\|hf\)\=\|avr32\|hppa\|i386\|ia64\|lpia\|m32r\|m68k\|mips\%(el\)\=\|powerpc\|ppc64\|s390x\=\|sh[34]\(eb\)\=\|sh\|sparc\%(64\)\=\)\|hurd-\%(i386\|any\)\|kfreebsd-\%(i386\|amd64\|any\)\|knetbsd-\%(i386\|any\)\|kopensolaris-\%(i386\|any\)\|netbsd-\%(alpha\|i386\|any\)\|any\)"
+syn match debcontrolArchitecture contained "\%(all\|linux-any\|\%(any-\)\=\%(alpha\|amd64\|arm\%(e[bl]\|hf\|64\)\=\|avr32\|hppa\|i386\|ia64\|lpia\|m32r\|m68k\|mips\%(el\)\=\|powerpc\%(spe\)\=\|ppc64\|s390x\=\|sh[34]\(eb\)\=\|sh\|sparc\%(64\)\=\)\|x32\|hurd-\%(i386\|any\)\|kfreebsd-\%(i386\|amd64\|any\)\|knetbsd-\%(i386\|any\)\|kopensolaris-\%(i386\|any\)\|netbsd-\%(alpha\|i386\|any\)\|any\)"
 syn match debcontrolMultiArch contained "\%(no\|foreign\|allowed\|same\)"
 syn match debcontrolName contained "[a-z0-9][a-z0-9+.-]\+"
 syn match debcontrolPriority contained "\(extra\|important\|optional\|required\|standard\)"
@@ -38,19 +38,21 @@ syn match debcontrolDmUpload contained "\cyes"
 syn match debcontrolHTTPUrl contained "\vhttps?://[[:alnum:]][-[:alnum:]]*[[:alnum:]]?(\.[[:alnum:]][-[:alnum:]]*[[:alnum:]]?)*\.[[:alpha:]][-[:alnum:]]*[[:alpha:]]?(:\d+)?(/[^[:space:]]*)?$"
 syn match debcontrolVcsSvn contained "\vsvn%(\+ssh)?://[[:alnum:]][-[:alnum:]]*[[:alnum:]]?(\.[[:alnum:]][-[:alnum:]]*[[:alnum:]]?)*\.[[:alpha:]][-[:alnum:]]*[[:alpha:]]?(:\d+)?(/[^[:space:]]*)?$"
 syn match debcontrolVcsCvs contained "\v%(\-d *)?:pserver:[^@]+\@[[:alnum:]][-[:alnum:]]*[[:alnum:]]?(\.[[:alnum:]][-[:alnum:]]*[[:alnum:]]?)*\.[[:alpha:]][-[:alnum:]]*[[:alpha:]]?:/[^[:space:]]*%( [^[:space:]]+)?$"
-syn match debcontrolVcsGit contained "\v%(git|http)://[[:alnum:]][-[:alnum:]]*[[:alnum:]]?(\.[[:alnum:]][-[:alnum:]]*[[:alnum:]]?)*\.[[:alpha:]][-[:alnum:]]*[[:alpha:]]?(:\d+)?(/[^[:space:]]*)?$"
+syn match debcontrolVcsGit contained "\v%(git|http)://[[:alnum:]][-[:alnum:]]*[[:alnum:]]?(\.[[:alnum:]][-[:alnum:]]*[[:alnum:]]?)*\.[[:alpha:]][-[:alnum:]]*[[:alpha:]]?(:\d+)?(/[^[:space:]]*)?%(\s+-b\s+[^ ~^:?*[\\]+)?$"
 
 " An email address
 syn match	debcontrolEmail	"[_=[:alnum:]\.+-]\+@[[:alnum:]\./\-]\+"
 syn match	debcontrolEmail	"<.\{-}>"
 
 " #-Comments
-syn match debcontrolComment "^#.*$"
+syn match debcontrolComment "^#.*$" contains=@Spell
 
 syn case ignore
 
 " List of all legal keys
-syn match debcontrolKey contained "^\%(Source\|Package\|Section\|Priority\|\%(XSBC-Original-\)\=Maintainer\|Uploaders\|Build-\%(Conflicts\|Depends\)\%(-Indep\)\=\|Standards-Version\|\%(Pre-\)\=Depends\|Recommends\|Suggests\|Provides\|Replaces\|Conflicts\|Enhances\|Breaks\|Essential\|Architecture\|Multi-Arch\|Description\|Bugs\|Origin\|X[SB]-Python-Version\|Homepage\|\(XS-\)\=Vcs-\(Browser\|Arch\|Bzr\|Cvs\|Darcs\|Git\|Hg\|Mtn\|Svn\)\|\%(XC-\)\=Package-Type\|\%(XS-\)\=DM-Upload-Allowed\): *"
+syn match debcontrolKey contained "^\%(Source\|Package\|Section\|Priority\|\%(XSBC-Original-\)\=Maintainer\|Uploaders\|Build-\%(Conflicts\|Depends\)\%(-Indep\)\=\|Standards-Version\|\%(Pre-\)\=Depends\|Recommends\|Suggests\|Provides\|Replaces\|Conflicts\|Enhances\|Breaks\|Essential\|Architecture\|Multi-Arch\|Description\|Bugs\|Origin\|X[SB]-Python-Version\|Homepage\|\(XS-\)\=Vcs-\(Browser\|Arch\|Bzr\|Cvs\|Darcs\|Git\|Hg\|Mtn\|Svn\)\|\%(XC-\)\=Package-Type\): *"
+
+syn match debcontrolDeprecatedKey contained "^\%(\%(XS-\)\=DM-Upload-Allowed\): *"
 
 " Fields for which we do strict syntax checking
 syn region debcontrolStrictField start="^Architecture" end="$" contains=debcontrolKey,debcontrolArchitecture,debcontrolSpace oneline
@@ -64,11 +66,12 @@ syn region debcontrolStrictField start="^\%(XS-\)\=Vcs-\%(Browser\|Arch\|Bzr\|Da
 syn region debcontrolStrictField start="^\%(XS-\)\=Vcs-Svn" end="$" contains=debcontrolKey,debcontrolVcsSvn,debcontrolHTTPUrl oneline keepend
 syn region debcontrolStrictField start="^\%(XS-\)\=Vcs-Cvs" end="$" contains=debcontrolKey,debcontrolVcsCvs oneline keepend
 syn region debcontrolStrictField start="^\%(XS-\)\=Vcs-Git" end="$" contains=debcontrolKey,debcontrolVcsGit oneline keepend
-syn region debcontrolStrictField start="^\%(XS-\)\=DM-Upload-Allowed" end="$" contains=debcontrolKey,debcontrolDmUpload oneline
+syn region debcontrolStrictField start="^\%(XS-\)\=DM-Upload-Allowed" end="$" contains=debcontrolDeprecatedKey,debcontrolDmUpload oneline
 
 " Catch-all for the other legal fields
 syn region debcontrolField start="^\%(\%(XSBC-Original-\)\=Maintainer\|Standards-Version\|Essential\|Bugs\|Origin\|X[SB]-Python-Version\|\%(XS-\)\=Vcs-Mtn\):" end="$" contains=debcontrolKey,debcontrolVariable,debcontrolEmail oneline
 syn region debcontrolMultiField start="^\%(Build-\%(Conflicts\|Depends\)\%(-Indep\)\=\|\%(Pre-\)\=Depends\|Recommends\|Suggests\|Provides\|Replaces\|Conflicts\|Enhances\|Breaks\|Uploaders\|Description\):" skip="^ " end="^$"me=s-1 end="^[^ #]"me=s-1 contains=debcontrolKey,debcontrolEmail,debcontrolVariable,debcontrolComment
+syn region debcontrolMultiFieldSpell start="^\%(Description\):" skip="^ " end="^$"me=s-1 end="^[^ #]"me=s-1 contains=debcontrolKey,debcontrolEmail,debcontrolVariable,debcontrolComment,@Spell
 
 " Associate our matches and regions with pretty colours
 if version >= 508 || !exists("did_debcontrol_syn_inits")
@@ -82,6 +85,7 @@ if version >= 508 || !exists("did_debcontrol_syn_inits")
   HiLink debcontrolKey		Keyword
   HiLink debcontrolField	Normal
   HiLink debcontrolStrictField	Error
+  HiLink debcontrolDeprecatedKey	Error
   HiLink debcontrolMultiField	Normal
   HiLink debcontrolArchitecture	Normal
   HiLink debcontrolMultiArch	Normal
