@@ -34,6 +34,7 @@ static char	*mediumVersion = VIM_VERSION_MEDIUM;
 # if (defined(VMS) && defined(VAXC)) || defined(PROTO)
 char	longVersion[sizeof(VIM_VERSION_LONG_DATE) + sizeof(__DATE__)
 						      + sizeof(__TIME__) + 3];
+
     void
 make_version()
 {
@@ -54,10 +55,16 @@ char	*longVersion = VIM_VERSION_LONG_DATE __DATE__ " " __TIME__ ")";
 char	*longVersion = VIM_VERSION_LONG;
 #endif
 
+static void list_features __ARGS((void));
 static void version_msg __ARGS((char *s));
 
 static char *(features[]) =
 {
+#ifdef HAVE_ACL
+	"+acl",
+#else
+	"-acl",
+#endif
 #ifdef AMIGA		/* only for Amiga systems */
 # ifdef FEAT_ARP
 	"+ARP",
@@ -348,6 +355,7 @@ static char *(features[]) =
 # else
 	"-mouse",
 #endif
+
 #if defined(UNIX) || defined(VMS)
 # ifdef FEAT_MOUSE_DEC
 	"+mouse_dec",
@@ -369,22 +377,8 @@ static char *(features[]) =
 # else
 	"-mouse_netterm",
 # endif
-# ifdef FEAT_SYSMOUSE
-	"+mouse_sysmouse",
-# else
-	"-mouse_sysmouse",
-# endif
-# ifdef FEAT_MOUSE_XTERM
-	"+mouse_xterm",
-# else
-	"-mouse_xterm",
-# endif
-# ifdef FEAT_MOUSE_URXVT
-	"+mouse_urxvt",
-# else
-	"-mouse_urxvt",
-# endif
 #endif
+
 #ifdef __QNX__
 # ifdef FEAT_MOUSE_PTERM
 	"+mouse_pterm",
@@ -392,6 +386,30 @@ static char *(features[]) =
 	"-mouse_pterm",
 # endif
 #endif
+
+#if defined(UNIX) || defined(VMS)
+# ifdef FEAT_MOUSE_SGR
+	"+mouse_sgr",
+# else
+	"-mouse_sgr",
+# endif
+# ifdef FEAT_SYSMOUSE
+	"+mouse_sysmouse",
+# else
+	"-mouse_sysmouse",
+# endif
+# ifdef FEAT_MOUSE_URXVT
+	"+mouse_urxvt",
+# else
+	"-mouse_urxvt",
+# endif
+# ifdef FEAT_MOUSE_XTERM
+	"+mouse_xterm",
+# else
+	"-mouse_xterm",
+# endif
+#endif
+
 #ifdef FEAT_MBYTE_IME
 # ifdef DYNAMIC_IME
 	"+multi_byte_ime/dyn",
@@ -624,15 +642,11 @@ static char *(features[]) =
 #else
 	"-virtualedit",
 #endif
-#ifdef FEAT_VISUAL
 	"+visual",
-# ifdef FEAT_VISUALEXTRA
+#ifdef FEAT_VISUALEXTRA
 	"+visualextra",
-# else
-	"-visualextra",
-# endif
 #else
-	"-visual",
+	"-visualextra",
 #endif
 #ifdef FEAT_VIMINFO
 	"+viminfo",
@@ -708,436 +722,18 @@ static char *(features[]) =
 # else
 	"-xpm_w32",
 # endif
+#else
+# ifdef HAVE_XPM
+	"+xpm",
+# else
+	"-xpm",
+# endif
 #endif
 	NULL
 };
 
 static int included_patches[] =
 {   /* Add new patch number below this line */
-/**/
-    547,
-/**/
-    546,
-/**/
-    545,
-/**/
-    544,
-/**/
-    543,
-/**/
-    542,
-/**/
-    541,
-/**/
-    540,
-/**/
-    539,
-/**/
-    538,
-/**/
-    537,
-/**/
-    536,
-/**/
-    535,
-/**/
-    534,
-/**/
-    533,
-/**/
-    532,
-/**/
-    531,
-/**/
-    530,
-/**/
-    529,
-/**/
-    528,
-/**/
-    527,
-/**/
-    526,
-/**/
-    525,
-/**/
-    524,
-/**/
-    523,
-/**/
-    522,
-/**/
-    521,
-/**/
-    520,
-/**/
-    519,
-/**/
-    518,
-/**/
-    517,
-/**/
-    516,
-/**/
-    515,
-/**/
-    514,
-/**/
-    513,
-/**/
-    512,
-/**/
-    511,
-/**/
-    510,
-/**/
-    509,
-/**/
-    508,
-/**/
-    507,
-/**/
-    506,
-/**/
-    505,
-/**/
-    504,
-/**/
-    503,
-/**/
-    502,
-/**/
-    501,
-/**/
-    500,
-/**/
-    499,
-/**/
-    498,
-/**/
-    497,
-/**/
-    496,
-/**/
-    495,
-/**/
-    494,
-/**/
-    493,
-/**/
-    492,
-/**/
-    491,
-/**/
-    490,
-/**/
-    489,
-/**/
-    488,
-/**/
-    487,
-/**/
-    486,
-/**/
-    485,
-/**/
-    484,
-/**/
-    483,
-/**/
-    482,
-/**/
-    481,
-/**/
-    480,
-/**/
-    479,
-/**/
-    478,
-/**/
-    477,
-/**/
-    476,
-/**/
-    475,
-/**/
-    474,
-/**/
-    473,
-/**/
-    472,
-/**/
-    471,
-/**/
-    470,
-/**/
-    469,
-/**/
-    468,
-/**/
-    467,
-/**/
-    466,
-/**/
-    465,
-/**/
-    464,
-/**/
-    463,
-/**/
-    462,
-/**/
-    461,
-/**/
-    460,
-/**/
-    459,
-/**/
-    458,
-/**/
-    457,
-/**/
-    456,
-/**/
-    455,
-/**/
-    454,
-/**/
-    453,
-/**/
-    452,
-/**/
-    451,
-/**/
-    450,
-/**/
-    449,
-/**/
-    448,
-/**/
-    447,
-/**/
-    446,
-/**/
-    445,
-/**/
-    444,
-/**/
-    443,
-/**/
-    442,
-/**/
-    441,
-/**/
-    440,
-/**/
-    439,
-/**/
-    438,
-/**/
-    437,
-/**/
-    436,
-/**/
-    435,
-/**/
-    434,
-/**/
-    433,
-/**/
-    432,
-/**/
-    431,
-/**/
-    430,
-/**/
-    429,
-/**/
-    428,
-/**/
-    427,
-/**/
-    426,
-/**/
-    425,
-/**/
-    424,
-/**/
-    423,
-/**/
-    422,
-/**/
-    421,
-/**/
-    420,
-/**/
-    419,
-/**/
-    418,
-/**/
-    417,
-/**/
-    416,
-/**/
-    415,
-/**/
-    414,
-/**/
-    413,
-/**/
-    412,
-/**/
-    411,
-/**/
-    410,
-/**/
-    409,
-/**/
-    408,
-/**/
-    407,
-/**/
-    406,
-/**/
-    405,
-/**/
-    404,
-/**/
-    403,
-/**/
-    402,
-/**/
-    401,
-/**/
-    400,
-/**/
-    399,
-/**/
-    398,
-/**/
-    397,
-/**/
-    396,
-/**/
-    395,
-/**/
-    394,
-/**/
-    393,
-/**/
-    392,
-/**/
-    391,
-/**/
-    390,
-/**/
-    389,
-/**/
-    388,
-/**/
-    387,
-/**/
-    386,
-/**/
-    385,
-/**/
-    384,
-/**/
-    383,
-/**/
-    382,
-/**/
-    381,
-/**/
-    380,
-/**/
-    379,
-/**/
-    378,
-/**/
-    377,
-/**/
-    376,
-/**/
-    375,
-/**/
-    374,
-/**/
-    373,
-/**/
-    372,
-/**/
-    371,
-/**/
-    370,
-/**/
-    369,
-/**/
-    368,
-/**/
-    367,
-/**/
-    366,
-/**/
-    365,
-/**/
-    364,
-/**/
-    363,
-/**/
-    362,
-/**/
-    361,
-/**/
-    360,
-/**/
-    359,
-/**/
-    358,
-/**/
-    357,
-/**/
-    356,
-/**/
-    355,
-/**/
-    354,
-/**/
-    353,
-/**/
-    352,
-/**/
-    351,
-/**/
-    350,
-/**/
-    349,
-/**/
-    348,
-/**/
-    347,
-/**/
-    346,
-/**/
-    345,
-/**/
-    344,
-/**/
-    343,
-/**/
-    342,
-/**/
-    341,
-/**/
-    340,
-/**/
-    339,
-/**/
-    338,
-/**/
-    337,
-/**/
-    336,
 /**/
     335,
 /**/
@@ -1868,6 +1464,76 @@ ex_version(eap)
     }
 }
 
+/*
+ * List all features aligned in columns, dictionary style.
+ */
+    static void
+list_features()
+{
+    int		i;
+    int		ncol;
+    int		nrow;
+    int		nfeat = 0;
+    int		width = 0;
+
+    /* Find the length of the longest feature name, use that + 1 as the column
+     * width */
+    for (i = 0; features[i] != NULL; ++i)
+    {
+	int l = (int)STRLEN(features[i]);
+
+	if (l > width)
+	    width = l;
+	++nfeat;
+    }
+    width += 1;
+
+    if (Columns < width)
+    {
+	/* Not enough screen columns - show one per line */
+	for (i = 0; features[i] != NULL; ++i)
+	{
+	    version_msg(features[i]);
+	    if (msg_col > 0)
+		msg_putchar('\n');
+	}
+	return;
+    }
+
+    /* The rightmost column doesn't need a separator.
+     * Sacrifice it to fit in one more column if possible. */
+    ncol = (int) (Columns + 1) / width;
+    nrow = nfeat / ncol + (nfeat % ncol ? 1 : 0);
+
+    /* i counts columns then rows.  idx counts rows then columns. */
+    for (i = 0; !got_int && i < nrow * ncol; ++i)
+    {
+	int idx = (i / ncol) + (i % ncol) * nrow;
+
+	if (idx < nfeat)
+	{
+	    int last_col = (i + 1) % ncol == 0;
+
+	    msg_puts((char_u *)features[idx]);
+	    if (last_col)
+	    {
+		if (msg_col > 0)
+		    msg_putchar('\n');
+	    }
+	    else
+	    {
+		while (msg_col % width)
+		    msg_putchar(' ');
+	    }
+	}
+	else
+	{
+	    if (msg_col > 0)
+		msg_putchar('\n');
+	}
+    }
+}
+
     void
 list_version()
 {
@@ -2065,15 +1731,8 @@ list_version()
 #endif
     version_msg(_("  Features included (+) or not (-):\n"));
 
-    /* print all the features */
-    for (i = 0; features[i] != NULL; ++i)
-    {
-	version_msg(features[i]);
-	if (msg_col > 0)
-	    version_msg(" ");
-    }
+    list_features();
 
-    version_msg("\n");
 #ifdef SYS_VIMRC_FILE
     version_msg(_("   system vimrc file: \""));
     version_msg(SYS_VIMRC_FILE);
@@ -2182,6 +1841,21 @@ version_msg(s)
 }
 
 static void do_intro_line __ARGS((int row, char_u *mesg, int add_version, int attr));
+
+/*
+ * Show the intro message when not editing a file.
+ */
+    void
+maybe_intro_message()
+{
+    if (bufempty()
+	    && curbuf->b_fname == NULL
+#ifdef FEAT_WINDOWS
+	    && firstwin->w_next == NULL
+#endif
+	    && vim_strchr(p_shm, SHM_INTRO) == NULL)
+	intro_message(FALSE);
+}
 
 /*
  * Give an introductory message about Vim.

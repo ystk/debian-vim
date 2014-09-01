@@ -1,4 +1,4 @@
-*change.txt*    For Vim version 7.3.  Last change: 2012 Apr 30
+*change.txt*    For Vim version 7.4.  Last change: 2014 Feb 11
 
 
 		  VIM REFERENCE MANUAL    by Bram Moolenaar
@@ -71,9 +71,21 @@ For inserting text see |insert.txt|.
 			"D" deletes the highlighted text plus all text until
 			the end of the line.  {not in Vi}
 
-					*:d* *:de* *:del* *:delete* *:dl*
+					*:d* *:de* *:del* *:delete* *:dl* *:dp*
 :[range]d[elete] [x]	Delete [range] lines (default: current line) [into
 			register x].
+			Note these weird abbreviations:
+			   :dl		delete and list
+			   :dell	idem
+			   :delel	idem
+			   :deletl	idem
+			   :deletel	idem
+			   :dp		delete and print
+			   :dep		idem
+			   :delp	idem
+			   :delep	idem
+			   :deletp	idem
+			   :deletep	idem
 
 :[range]d[elete] [x] {count}
 			Delete {count} lines, starting with [range]
@@ -143,6 +155,9 @@ the 'joinspaces' option is on, these commands insert two spaces after a '.',
 only after a '.').
 The 'B' and 'M' flags in 'formatoptions' change the behavior for inserting
 spaces before and after a multi-byte character |fo-table|.
+
+The '[ mark is set at the end of the first line that was joined, '] at the end
+of the resulting line.
 
 
 ==============================================================================
@@ -463,8 +478,8 @@ If the 'shiftround' option is on, the indent is rounded to a multiple of
 'shiftwidth'.
 
 If the 'smartindent' option is on, or 'cindent' is on and 'cinkeys' contains
-'#', shift right does not affect lines starting with '#' (these are supposed
-to be C preprocessor lines that must stay in column 1).
+'#' with a zero value, shift right does not affect lines starting with '#'
+(these are supposed to be C preprocessor lines that must stay in column 1).
 
 When the 'expandtab' option is off (this is the default) Vim uses <Tab>s as
 much as possible to make the indent.  You can use ">><<" to replace an indent
@@ -598,8 +613,11 @@ For other systems the tmpnam() library function is used.
 			the flags.
 
 								*g&*
-g&			Synonym for `:%s//~/&` (repeat last substitute on all
-			lines with the same flags).
+g&			Synonym for `:%s//~/&` (repeat last substitute with
+			last search pattern on all lines with the same flags).
+			For example, when you first do a substitution with
+			`:s/pattern/repl/flags` and then `/search` for
+			something else, `g&` will do `:%s/search/repl/flags`.
 			Mnemonic: global substitute. {not in Vi}
 
 						*:snomagic* *:sno*
@@ -666,6 +684,8 @@ The flags that you can use for the substitute commands:
 [n]	Report the number of matches, do not actually substitute.  The [c]
 	flag is ignored.  The matches are reported as if 'report' is zero.
 	Useful to |count-items|.
+	If \= |sub-replace-expression| is used, the expression will be
+	evaluated in the |sandbox| at every match.
 
 [p]	Print the line containing the last substitute.
 
@@ -779,6 +799,11 @@ Examples: >
   :s/abcde/abc^Mde/		 modifies "abcde"    to "abc", "de" (two lines)
   :s/$/\^M/			 modifies "abcde"    to "abcde^M"
   :s/\w\+/\u\0/g		 modifies "bla bla"  to "Bla Bla"
+  :s/\w\+/\L\u/g		 modifies "BLA bla"  to "Bla Bla"
+
+Note: "\L\u" can be used to capitalize the first letter of a word.  This is
+not compatible with Vi and older versions of Vim, where the "\u" would cancel
+out the "\L". Same for "\U\l".
 
 Note: In previous versions CTRL-V was handled in a special way.  Since this is
 not Vi compatible, this was removed.  Use a backslash instead.
@@ -802,7 +827,7 @@ either the first or second pattern in parentheses did not match, so either
 <
 
 Substitute with an expression			*sub-replace-expression*
-						*sub-replace-\=*
+						*sub-replace-\=* *s/\=*
 When the substitute string starts with "\=" the remainder is interpreted as an
 expression.  This does not work recursively: a |substitute()| function inside
 the expression cannot use "\=" for the substitute string.
@@ -1047,6 +1072,11 @@ another register.  E.g., yank the text to copy, Visually select the text to
 replace and use "0p .  You can repeat this as many times as you like, the
 unnamed register will be changed each time.
 
+When you use a blockwise Visual mode command and yank only a single line into
+a register, a paste on a visual selected area will paste that single line on
+each of the selected lines (thus replacing the blockwise selected region by a
+block of the pasted line).
+
 							*blockwise-register*
 If you use a blockwise Visual mode command to get the text into the register,
 the block of text will be inserted before ("P") or after ("p") the cursor
@@ -1104,6 +1134,8 @@ less than one line (the small delete register is used then).  An exception is
 made for the delete operator with these movement commands: |%|, |(|, |)|, |`|,
 |/|, |?|, |n|, |N|, |{| and |}|.  Register "1 is always used then (this is Vi
 compatible).  The "- register is used as well if the delete is within a line.
+Note that these characters may be mapped.  E.g. |%| is mapped by the matchit
+plugin.
    With each successive deletion or change, Vim shifts the previous contents
 of register 1 into register 2, 2 into 3, and so forth, losing the previous
 contents of register 9.
@@ -1502,6 +1534,7 @@ n	When formatting text, recognize numbered lists.  This actually uses
 			first line of a paragraph
 		second line of the same paragraph
 		third line.
+<	This also works inside comments, ignoring the comment leader.
 v	Vi-compatible auto-wrapping in insert mode: Only break a line at a
 	blank that you have entered during the current insert command.  (Note:
 	this is not 100% Vi compatible.  Vi has some "unexpected features" or
@@ -1617,7 +1650,7 @@ And a few warnings:
 7. Sorting text						*sorting*
 
 Vim has a sorting function and a sorting command.  The sorting function can be
-found here: |sort()|.
+found here: |sort()|, |uniq()|.
 
 							*:sor* *:sort*
 :[range]sor[t][!] [i][u][r][n][x][o] [/{pattern}/]

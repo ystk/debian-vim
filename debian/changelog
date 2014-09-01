@@ -1,3 +1,182 @@
+vim (2:7.4.335-1) unstable; urgency=medium
+
+  * Merge upstream tag v7-4-335
+    + Avoid setting buftype=nofile for scp buffers.  (Closes: #743136)
+    + Properly handle scp://user@host/ URLs  (Closes: #744111)
+  * Remove EOLed Quantal release from Debian runtime files.
+  * Transition from Lua 5.1 to Lua 5.2
+
+ -- James McCoy <jamessan@debian.org>  Thu, 19 Jun 2014 23:02:17 -0400
+
+vim (2:7.4.273-2) unstable; urgency=medium
+
+  * syntax/debcontrol.vim:
+    + Fix architecture orders to work with left-most regex matching.
+
+ -- James McCoy <jamessan@debian.org>  Fri, 02 May 2014 00:17:48 -0400
+
+vim (2:7.4.273-1) unstable; urgency=medium
+
+  * Merge upstream tag v7-4-273
+  * syntax/debcontrol.vim:
+    + Correctly highlight any-x32 in Architecture field
+    + Add ppc64el architecture
+  * syntax/deb{changelog,sources}.vim:
+    + Add codenames for Ubuntu's development release (devel, utopic)
+
+ -- James McCoy <jamessan@debian.org>  Thu, 01 May 2014 21:50:24 -0400
+
+vim (2:7.4.253-1) unstable; urgency=medium
+
+  * Merge upstream tag v7-4-253
+    + 7.4.252: Clear blink timer after removing it to avoid GLib-CRITICAL
+      error.  (Closes: #743668)
+  * rules: Explicitly disable SMACK on Linux, in favor of SELinux.
+
+ -- James McCoy <jamessan@debian.org>  Mon, 07 Apr 2014 22:47:57 -0400
+
+vim (2:7.4.225-1) unstable; urgency=medium
+
+  * Merge upstream tag v7-4-225
+    + Patches merged upstream:
+      - upstream/python-ftplugin-include.patch and
+        upstream/shadowdir-tests.diff
+    + netrw: Don't try to access the clipboard when support isn't enabled.
+      (Closes: #737530)
+    + 7.4.209: Escape a repeated command when storing it for redo.  (Closes:
+      #739656)
+    + 7.4.222: Use RbConfig::CONFIG['rubyarchhdrdir'] to allow building Vim
+      against Ruby 2.x.  (Closes: #739125)
+
+ -- James McCoy <jamessan@debian.org>  Thu, 27 Mar 2014 22:13:31 -0400
+
+vim (2:7.4.161-1) unstable; urgency=medium
+
+  * Merge upstream tag v7-4-161
+    + Fix loading of NetRW when editing a directory.  (Closes: #732091)
+  * Update Ubuntu releases in Debian syntax files.
+  * Add more debian-ports architectures to debcontrol syntax file.  (Closes:
+    #722313)
+  * ftplugin/debchangelog: Allow changing distribution from UNRELEASED.
+    (Closes: #734267)
+  * control: Bump Standards-Version to 3.9.5, no changes needed.
+  * Add shadowdir-tests.diff to fix building in a shadow build directory.
+
+ -- James McCoy <jamessan@debian.org>  Sun, 02 Feb 2014 19:27:58 -0500
+
+vim (2:7.4.052-1) unstable; urgency=low
+
+  * Merge upstream tag v7-4-052
+    - Remove upstream/python-ftplugin-keywordprg.patch, merged upstream
+  * debian/watch: Use the pasv option.
+  * debian/control: Version the ruby1.8{,-dev} Build-Conflicts now that the
+    Provides: have been dropped.
+
+ -- James McCoy <jamessan@debian.org>  Wed, 09 Oct 2013 00:06:41 -0400
+
+vim (2:7.4.027-1) unstable; urgency=low
+
+  * Merge upstream tag v7-4-027
+    + 7.4.003: Refresh a stale pointer in new regex engine to avoid
+      dereferencing a freed pointer.  (Closes: #722081)
+    + 7.4.024: Read an undo file owned by the current user, even if that
+      differs from the owner of the edited file.  (Closes: #721944)
+    + Use old regex engine for yamlBlockMappingKey highlighting to workaround
+      performance problem with new engine.  (Closes: #719510)
+
+ -- James McCoy <jamessan@debian.org>  Tue, 17 Sep 2013 20:29:24 -0400
+
+vim (2:7.4.000-1) unstable; urgency=low
+
+  * New upstream release.
+  * Upload to unstable.
+  * Stop providing /usr/share/vim/vimcurrent.  It shouldn't be used by
+    anything, since it's Debian specific, and the Vim packaging hasn't used it
+    (other than documenting the location of debian.vim) for years.
+  * Override spelling-error-in-binary … tEH the.
+
+ -- James McCoy <jamessan@debian.org>  Sat, 10 Aug 2013 21:24:02 -0400
+
+vim (2:7.4b.004-1) experimental; urgency=low
+
+  * Merge upstream tag v7-4b-004
+    + 7.4a.044: Clear window from b_wininfo in win_free().  (Closes: #717529)
+  * debian/rules: Install Japanese translations of man pages.
+  * Update path in binaries-have-file-conflict lintian override.
+  * Use canonical URI for Vcs-*.
+
+ -- James McCoy <jamessan@debian.org>  Fri, 02 Aug 2013 22:58:04 -0400
+
+vim (2:7.4a.012-1) experimental; urgency=low
+
+  * Merge upstream tag v7-4a-012
+    + New NFA regex engine.  Vim automatically determines whether to use the
+      new or old engine based on the pattern.  A specific engine can be
+      forced with the 'regexengine' option or within a pattern using the \%#=
+      atom.
+    + Updated Perl syntax files
+      - Adds support for Perl 5.10 syntax.  (Closes: #681606)
+      - Fixes syntax highlighting when qq{} contains a } character.  (Closes:
+        #598197)
+    + Fix display of an empty entry in NetRW directory listing.  (Closes:
+      #709101)
+    + Recognize Ikiwiki's *.mdwn as markdown filetype.  (Closes: #672597)
+    + 7.3.985: Call g_set_prgname() on startup to set a proper WM_CLASS.
+      (Closes: #639925)
+    + Source ~/.vim/vimrc or ~/.vim/gvimrc in favor of ~/.vimrc or ~/.gvimrc.
+    + Update sh syntax file
+      - Recognize when sh is dash and change the default behavior highlighting
+        to be POSIX instead of Bourne.  (Closes: #712657, #699172)
+      - Correctly highlight text after a "--".  (Closes: #713922)
+  * debian/rules: Simplify version handling and bump for the pre-release.
+  * Add shadowdir-fixes.patch, to fix test failures when building in a
+    shadow directory.
+
+ -- James McCoy <jamessan@debian.org>  Fri, 12 Jul 2013 22:30:28 -0400
+
+vim (2:7.3.923-3) unstable; urgency=low
+
+  * Build-Conflict against ruby1.8{,-dev} to work around incorrect ruby{,-dev}
+    Provides (c.f., #710022).
+
+ -- James McCoy <jamessan@debian.org>  Sun, 23 Jun 2013 22:12:29 -0400
+
+vim (2:7.3.923-2) unstable; urgency=low
+
+  * Fix FTBFS with M-A Python.  (Closes: #701513)
+
+ -- James McCoy <jamessan@debian.org>  Sun, 26 May 2013 22:18:36 -0400
+
+vim (2:7.3.923-1) unstable; urgency=low
+
+  * Merge upstream tag v7-3-923
+    + Updated documentation for Python syntax file.  (Closes: #613038)
+    + NetRW no longer creates files in ~/.vim (or ~/.vim itself) if
+      g:netrw_dirhistmax <= 0.  (Closes: #635984)
+  * Remove EOLed Oneiric and Hardy releases from Debian runtime files.  Add
+    Saucy and wheezy-backports.
+  * Bump Standards-Version to 3.9.4, no changes needed.
+  * Recognize “-b $branch” as part of a Vcs-Git field.  (Closes: #702751)
+
+ -- James McCoy <jamessan@debian.org>  Sun, 05 May 2013 23:07:27 -0400
+
+vim (2:7.3.831-1) experimental; urgency=low
+
+  * Merge upstream tag v7-3-831
+    + Merged patches:
+      - upstream/debian-runtime-spell.patch, upstream/if_py-crash.patch,
+        upstream/netrw-syntax-fix.patch, upstream/remove-py_config.patch
+    + 7.3.607: Swap fg and bg colors for completion menu.  (Closes: #680772)
+    + 7.3.750: Fix off-by-one error in justify macro.  (Closes: #620106)
+    + 7.3.751: Retry test61 once if it fails.
+      - Remove the explicit ignoring of test61 failures in debian/rules
+  * Mark "DM-Upload-Allowed" in debian/control files as an "Error", since the
+    field is no longer supported by the Debian archives.
+  * Re-enable vim-gnome on m68k.
+  * Update Ubuntu release names in Debian runtime files.
+
+ -- James McCoy <jamessan@debian.org>  Thu, 21 Feb 2013 22:13:43 -0500
+
 vim (2:7.3.547-7) unstable; urgency=low
 
   * Add vim-lesstif.preinst to handle transitioning /usr/share/doc/vim-lesstif
