@@ -342,6 +342,13 @@ getcmdline(firstc, count, indent)
     do_digraph(-1);		/* init digraph typeahead */
 #endif
 
+    /* If something above caused an error, reset the flags, we do want to type
+     * and execute commands. Display may be messed up a bit. */
+    if (did_emsg)
+	redrawcmd();
+    did_emsg = FALSE;
+    got_int = FALSE;
+
     /*
      * Collect the command string, handling editing keys.
      */
@@ -752,11 +759,14 @@ getcmdline(firstc, count, indent)
 #ifdef FEAT_CMDWIN
 	if (c == cedit_key || c == K_CMDWIN)
 	{
-	    /*
-	     * Open a window to edit the command line (and history).
-	     */
-	    c = ex_window();
-	    some_key_typed = TRUE;
+	    if (ex_normal_busy == 0 && got_int == FALSE)
+	    {
+		/*
+		 * Open a window to edit the command line (and history).
+		 */
+		c = ex_window();
+		some_key_typed = TRUE;
+	    }
 	}
 # ifdef FEAT_DIGRAPHS
 	else
@@ -2295,10 +2305,10 @@ getexmodeline(promptc, cookie, indent)
 
 		p = (char_u *)line_ga.ga_data;
 		p[line_ga.ga_len] = NUL;
-		indent = get_indent_str(p, 8);
+		indent = get_indent_str(p, 8, FALSE);
 		indent += sw - indent % sw;
 add_indent:
-		while (get_indent_str(p, 8) < indent)
+		while (get_indent_str(p, 8, FALSE) < indent)
 		{
 		    char_u *s = skipwhite(p);
 
@@ -2350,11 +2360,11 @@ redraw:
 		else
 		{
 		    p[line_ga.ga_len] = NUL;
-		    indent = get_indent_str(p, 8);
+		    indent = get_indent_str(p, 8, FALSE);
 		    --indent;
 		    indent -= indent % get_sw_value(curbuf);
 		}
-		while (get_indent_str(p, 8) > indent)
+		while (get_indent_str(p, 8, FALSE) > indent)
 		{
 		    char_u *s = skipwhite(p);
 
@@ -6356,6 +6366,9 @@ ex_window()
 #ifdef FEAT_RIGHTLEFT
     int			save_cmdmsg_rl = cmdmsg_rl;
 #endif
+#ifdef FEAT_FOLDING
+    int			save_KeyTyped;
+#endif
 
     /* Can't do this recursively.  Can't do it when typing a password. */
     if (cmdwin_type != 0
@@ -6490,8 +6503,19 @@ ex_window()
     RedrawingDisabled = i;
 
 # ifdef FEAT_AUTOCMD
+
+#  ifdef FEAT_FOLDING
+    save_KeyTyped = KeyTyped;
+#  endif
+
     /* Trigger CmdwinLeave autocommands. */
     apply_autocmds(EVENT_CMDWINLEAVE, typestr, typestr, FALSE, curbuf);
+
+#  ifdef FEAT_FOLDING
+    /* Restore KeyTyped in case it is modified by autocommands */
+    KeyTyped = save_KeyTyped;
+#  endif
+
 # endif
 
     /* Restore the command line info. */

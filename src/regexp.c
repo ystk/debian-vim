@@ -358,6 +358,8 @@ static void	regdump __ARGS((char_u *, bt_regprog_T *));
 static char_u	*regprop __ARGS((char_u *));
 #endif
 
+static int re_mult_next __ARGS((char *what));
+
 static char_u e_missingbracket[] = N_("E769: Missing ] after %s[");
 static char_u e_unmatchedpp[] = N_("E53: Unmatched %s%%(");
 static char_u e_unmatchedp[] = N_("E54: Unmatched %s(");
@@ -2166,9 +2168,13 @@ regatom(flagp)
 #endif
 
 		case 's': ret = regnode(MOPEN + 0);
+			  if (re_mult_next("\\zs") == FAIL)
+			      return NULL;
 			  break;
 
 		case 'e': ret = regnode(MCLOSE + 0);
+			  if (re_mult_next("\\ze") == FAIL)
+			      return NULL;
 			  break;
 
 		default:  EMSG_RET_NULL(_("E68: Invalid character after \\z"));
@@ -3109,15 +3115,25 @@ peekchr()
 	    if (reg_magic >= MAGIC_OFF)
 	    {
 		char_u *p = regparse + 1;
+		int is_magic_all = (reg_magic == MAGIC_ALL);
 
-		/* ignore \c \C \m and \M after '$' */
+		/* ignore \c \C \m \M \v \V and \Z after '$' */
 		while (p[0] == '\\' && (p[1] == 'c' || p[1] == 'C'
-				|| p[1] == 'm' || p[1] == 'M' || p[1] == 'Z'))
+				|| p[1] == 'm' || p[1] == 'M'
+				|| p[1] == 'v' || p[1] == 'V' || p[1] == 'Z'))
+		{
+		    if (p[1] == 'v')
+			is_magic_all = TRUE;
+		    else if (p[1] == 'm' || p[1] == 'M' || p[1] == 'V')
+			is_magic_all = FALSE;
 		    p += 2;
+		}
 		if (p[0] == NUL
 			|| (p[0] == '\\'
 			    && (p[1] == '|' || p[1] == '&' || p[1] == ')'
 				|| p[1] == 'n'))
+			|| (is_magic_all
+			       && (p[0] == '|' || p[0] == '&' || p[0] == ')'))
 			|| reg_magic == MAGIC_ALL)
 		    curchr = Magic('$');
 	    }
@@ -6994,6 +7010,18 @@ regprop(op)
     return (char_u *)buf;
 }
 #endif	    /* DEBUG */
+
+/*
+ * Used in a place where no * or \+ can follow.
+ */
+    static int
+re_mult_next(what)
+    char *what;
+{
+    if (re_multi_type(peekchr()) == MULTI_MULT)
+	EMSG2_RET_FAIL(_("E888: (NFA regexp) cannot repeat %s"), what);
+    return OK;
+}
 
 #ifdef FEAT_MBYTE
 static void mb_decompose __ARGS((int c, int *c1, int *c2, int *c3));

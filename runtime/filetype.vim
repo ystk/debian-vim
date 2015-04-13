@@ -1,7 +1,7 @@
 " Vim support file to detect file types
 "
 " Maintainer:	Bram Moolenaar <Bram@vim.org>
-" Last Change:	2014 Jun 12
+" Last Change:	2014 Oct 09
 
 " Listen very carefully, I will say this only once
 if exists("did_load_filetypes")
@@ -530,6 +530,9 @@ au BufNewFile,BufRead configure.in,configure.ac setf config
 " CUDA  Cumpute Unified Device Architecture
 au BufNewFile,BufRead *.cu			setf cuda
 
+" Dockerfile
+au BufNewFile,BufRead Dockerfile		setf dockerfile
+
 " WildPackets EtherPeek Decoder
 au BufNewFile,BufRead *.dcd			setf dcd
 
@@ -811,6 +814,9 @@ au BufNewFile,BufRead {,.}gitolite.rc,example.gitolite.rc	setf perl
 " Gnuplot scripts
 au BufNewFile,BufRead *.gpi			setf gnuplot
 
+" Go (Google)
+au BufNewFile,BufRead *.go			setf go
+
 " GrADS scripts
 au BufNewFile,BufRead *.gs			setf grads
 
@@ -864,7 +870,7 @@ func! s:FThtml()
       setf xhtml
       return
     endif
-    if getline(n) =~ '{%\s*\(extends\|block\)\>'
+    if getline(n) =~ '{%\s*\(extends\|block\|load\)\>'
       setf htmldjango
       return
     endif
@@ -989,7 +995,7 @@ au BufNewFile,BufRead *.java,*.jav		setf java
 au BufNewFile,BufRead *.jj,*.jjt		setf javacc
 
 " JavaScript, ECMAScript
-au BufNewFile,BufRead *.js,*.javascript,*.es,*.jsx,*.json   setf javascript
+au BufNewFile,BufRead *.js,*.javascript,*.es,*.jsx   setf javascript
 
 " Java Server Pages
 au BufNewFile,BufRead *.jsp			setf jsp
@@ -1006,6 +1012,9 @@ au BufNewFile,BufRead *.jgr			setf jgraph
 
 " Jovial
 au BufNewFile,BufRead *.jov,*.j73,*.jovial	setf jovial
+
+" JSON
+au BufNewFile,BufRead *.json,*.jsonp		setf json
 
 " Kixtart
 au BufNewFile,BufRead *.kix			setf kix
@@ -1095,6 +1104,9 @@ au BufNewFile,BufRead *.lou,*.lout		setf lout
 " Lua
 au BufNewFile,BufRead *.lua			setf lua
 
+" Luarocks
+au BufNewFile,BufRead *.rockspec		setf lua
+
 " Linden Scripting Language (Second Life)
 au BufNewFile,BufRead *.lsl			setf lsl
 
@@ -1139,10 +1151,10 @@ au BufNewFile,BufRead *.mv,*.mpl,*.mws		setf maple
 au BufNewFile,BufRead *.map			setf map
 
 " Markdown
-au BufNewFile,BufRead *.markdown,*.mdown,*.mkd,*.mkdn,*.mdwn,README.md  setf markdown
+au BufNewFile,BufRead *.markdown,*.mdown,*.mkd,*.mkdn,*.mdwn,*.md  setf markdown
 
 " Mason
-au BufNewFile,BufRead *.mason,*.mhtml		setf mason
+au BufNewFile,BufRead *.mason,*.mhtml,*.comp	setf mason
 
 " Matlab or Objective C
 au BufNewFile,BufRead *.m			call s:FTm()
@@ -1231,8 +1243,8 @@ au BufNewFile,BufRead *.mod
 	\   setf modsim3 |
 	\ endif
 
-" Modula 2
-au BufNewFile,BufRead *.m2,*.DEF,*.MOD,*.md,*.mi setf modula2
+" Modula 2  (.md removed in favor of Markdown)
+au BufNewFile,BufRead *.m2,*.DEF,*.MOD,*.mi	setf modula2
 
 " Modula 3 (.m3, .i3, .mg, .ig)
 au BufNewFile,BufRead *.[mi][3g]		setf modula3
@@ -1647,6 +1659,20 @@ if has("fname_case")
   au BufNewFile,BufRead *.Rnw,*.rnw,*.Snw,*.snw		setf rnoweb
 else
   au BufNewFile,BufRead *.rnw,*.snw			setf rnoweb
+endif
+
+" R Markdown file
+if has("fname_case")
+  au BufNewFile,BufRead *.Rmd,*.rmd,*.Smd,*.smd		setf rmd
+else
+  au BufNewFile,BufRead *.rmd,*.smd			setf rmd
+endif
+
+" R reStructuredText file
+if has("fname_case")
+  au BufNewFile,BufRead *.Rrst,*.rrst,*.Srst,*.srst	setf rrst
+else
+  au BufNewFile,BufRead *.rrst,*.srst			setf rrst
 endif
 
 " Rexx, Rebol or R
@@ -2297,6 +2323,9 @@ au BufNewFile,BufRead vgrindefs			setf vgrindefs
 " VRML V1.0c
 au BufNewFile,BufRead *.wrl			setf vrml
 
+" Vroom (vim testing and executable documentation)
+au BufNewFile,BufRead *.vroom			setf vroom
+
 " Webmacro
 au BufNewFile,BufRead *.wm			setf webmacro
 
@@ -2664,7 +2693,7 @@ au BufNewFile,BufRead zsh*,zlog*		call s:StarSetf('zsh')
 
 " Plain text files, needs to be far down to not override others.  This avoids
 " the "conf" type being used if there is a line starting with '#'.
-au BufNewFile,BufRead *.txt,*.text		setf text
+au BufNewFile,BufRead *.txt,*.text,README	setf text
 
 
 " Use the filetype detect plugins.  They may overrule any of the previously
