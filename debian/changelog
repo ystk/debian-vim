@@ -1,3 +1,82 @@
+vim (2:7.4.488-7) unstable; urgency=medium
+
+  * Backport patch 7.4.576 to fix jarring toggling of 'linebreak' option when
+    using the c command to change the buffer.  (Closes: #774492)
+  * Backport upstream fix for call to unknown function in NetRW plugin.
+    (Closes: #768467)
+
+ -- James McCoy <jamessan@debian.org>  Tue, 31 Mar 2015 19:30:17 -0400
+
+vim (2:7.4.488-6) unstable; urgency=medium
+
+  * Build vim logo from the eps instead of pdf so the svg has the correct
+    bounding box.  Thanks to Simon McVittie for the idea!  (Closes: #778477)
+  * syntax/debchangelog.vim:
+    + Recognize jessie, jessie-backports, and sid targets
+    + Recognize binary-only=yes key value in debchangelogHeader
+
+ -- James McCoy <jamessan@debian.org>  Sat, 21 Mar 2015 14:24:01 -0400
+
+vim (2:7.4.488-5) unstable; urgency=medium
+
+  * Install icons to the proper directory.  dh_install doesn't rename files,
+    even though the last upload pretended it does.
+    - Use upstream's icons and remove the ones in debian/
+    - Add Build-Depends: pdf2svg to create a scalable icon
+
+ -- James McCoy <jamessan@debian.org>  Wed, 11 Feb 2015 21:38:10 -0500
+
+vim (2:7.4.488-4) unstable; urgency=medium
+
+  * Move vim icon from vim-gui-common to vim-common since both vim.desktop and
+    gvim.desktop use it.  (Closes: #773930)
+
+ -- James McCoy <jamessan@debian.org>  Mon, 29 Dec 2014 23:13:17 -0500
+
+vim (2:7.4.488-3) unstable; urgency=medium
+
+  * Install icons to /usr/share/icons/hicolor to work around #765069.
+    (Closes: #768256)
+
+ -- James McCoy <jamessan@debian.org>  Sun, 30 Nov 2014 15:08:09 -0500
+
+vim (2:7.4.488-2) unstable; urgency=medium
+
+  * Actually fix the Name in vim.desktop.  (Closes: #769575)
+
+ -- James McCoy <jamessan@debian.org>  Fri, 14 Nov 2014 21:06:27 -0500
+
+vim (2:7.4.488-1) unstable; urgency=medium
+
+  * Merge upstream tag v7-4-488
+  * Fix the Name in vim.desktop.
+
+ -- James McCoy <jamessan@debian.org>  Wed, 22 Oct 2014 21:07:59 -0400
+
+vim (2:7.4.481-1) unstable; urgency=medium
+
+  * Merge upstream tag v7-4-481
+    + Updated Russian translation of vimtutor.  (Closes: #722673)
+  * syntax/debcontrol.vim: Recognize https URLs for Vcs-Git.  (Closes:
+    #763553)
+  * debian/rules: Request all hardening features, other than fortify, from
+    dpkg-buildflags.
+  * Add codename for Ubuntu's next release, vivid.
+  * Install a .desktop file for terminal vim.  (Closes: #760512)
+
+ -- James McCoy <jamessan@debian.org>  Mon, 20 Oct 2014 23:26:20 -0400
+
+vim (2:7.4.430-1) unstable; urgency=medium
+
+  * Merge upstream tag v7-4-430
+    + 7.4.397: Fix paren matching in zsh scripts.  (Closes: #754507)
+    + Runtime updates:
+      - Improve highlighting of Python's \N{…} sequences.  (Closes: #749175)
+  * Add jessie release and remove EOLed saucy release from Debian runtime
+    files.  (Closes: #753823)
+
+ -- James McCoy <jamessan@debian.org>  Mon, 01 Sep 2014 04:11:24 -0400
+
 vim (2:7.4.335-1) unstable; urgency=medium
 
   * Merge upstream tag v7-4-335

@@ -1,8 +1,10 @@
 upstream/extra-rst-detection.patch
 upstream/es.po-recover.patch
 upstream/pythoncomplete-autoload-init.patch
-upstream/debcontrol-syntax-arch.patch
-upstream/debian-syntax-releases.patch
+upstream/debcontrol-syntax-vcs-git.patch
+upstream/debian-runtime-versions.patch
+upstream/v7-4-576.patch
+upstream/netrwSavePosn.patch
 debian/vim-tiny.patch
 debian/disabled-modelines.patch
 debian/extra-tex-detection.patch

@@ -5,6 +5,8 @@ Maintainer: Debian Vim Maintainers <pkg-vim-maintainers@lists.alioth.debian.org>
 Uploaders: James McCoy <jamessan@debian.org>
 Standards-Version: 3.9.5
 Build-Depends: libacl1-dev, libgpmg1-dev [linux-any], autoconf,
+# Building Vim's svg icons
+ pdf2svg, ghostscript,
 # B-D for dh_bugfiles
  debhelper (>= 7.2.3~),
  libtinfo-dev | libncurses5-dev, libselinux1-dev [linux-any],
@@ -29,6 +31,9 @@ Priority: important
 Architecture: any
 Depends: ${misc:Depends}, ${shlibs:Depends}
 Recommends: vim | vim-gnome | vim-gtk | vim-athena | vim-nox | vim-tiny
+# Move vim icon from vim-gui-common to vim-common
+Breaks: vim-gui-common (<< 2:7.4.488-4~)
+Replaces: vim-gui-common (<< 2:7.4.488-4~)
 Description: Vi IMproved - Common files
  Vim is an almost compatible version of the UNIX editor Vi.
  .

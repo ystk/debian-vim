@@ -3,7 +3,7 @@
 export DH_OPTIONS
 
 # Upstream handles the _FORTIFY_SOURCE flag on their own
-DEB_BUILD_MAINT_OPTIONS=hardening=-fortify
+DEB_BUILD_MAINT_OPTIONS=hardening=+all,-fortify
 
 ifneq (,$(wildcard /usr/share/dpkg/default.mk))
   include /usr/share/dpkg/default.mk
@@ -195,6 +195,7 @@ clean: $(foreach v,$(VARIANTS),clean-$(v))
 	rm -f debian/helpztags.1
 	rm -rf debian/policy/vim-policy.html
 	rm -f debian/policy/vim-policy.txt
+	rm -f debian/tmplogo.*
 	[ ! -f src/auto/config.cache ] || make distclean
 	rm -f src/auto/config.mk src/pixmaps src/runtime
 	[ ! -f debian/configure.dist ] || mv debian/configure.dist src/auto/configure
@@ -314,7 +315,6 @@ install-stamp-vim-basic: build-stamp-vim-basic $(DOT_IN_DEPS)
 	    installgtutorbin \
 	    installruntime \
 	    installtools \
-	    install-icons \
 	    install-languages
 	
 # Tests need to be run in series, otherwise the terminal requests may not see
@@ -387,6 +387,19 @@ install-stamp-vim-basic: build-stamp-vim-basic $(DOT_IN_DEPS)
 	  echo debian/tmp/usr/share/man/$$L/man1/evim.1  \
 	    usr/share/man/$$L/man1/ >>debian/vim-gui-common.install; \
 	done
+	
+	# Icons
+	for sz in 16 32 48; do \
+	  cp runtime/vim$${sz}x$${sz}.xpm debian/vim-common/usr/share/pixmaps/vim-$${sz}.xpm; \
+	  cp runtime/vim$${sz}x$${sz}.png debian/vim-common/usr/share/icons/hicolor/$${sz}x$${sz}/apps/vim.png; \
+	done
+	gs -sDefaultCMYKProfile=ps_cmyk.icc -sOutputICCProfile=ps_rgb.icc \
+	    -dSAFER -dEPSCrop -dBATCH -dNOPAUSE \
+	    -sDEVICE=pswrite -sOutputFile=debian/tmplogo.ps runtime/vimlogo.eps
+	ps2pdf debian/tmplogo.ps debian/tmplogo.pdf
+	pdf2svg debian/tmplogo.pdf debian/vim-common/usr/share/pixmaps/vim.svg
+	cp debian/vim-common/usr/share/pixmaps/vim.svg \
+	   debian/vim-common/usr/share/icons/hicolor/scalable/apps/vim.svg
 	
 	dh_installman
 	dh_install --fail-missing -X/tools/
