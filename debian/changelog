@@ -1,3 +1,10 @@
+vim (2:7.4.488-7+deb8u1) jessie-security; urgency=high
+
+  * Backport patch 8.0.0056 (and adapt tests) to fix an issue where malicious
+    modelines could execute arbitrary shell commands.  (CVE-2016-1248)
+
+ -- James McCoy <jamessan@debian.org>  Wed, 16 Nov 2016 21:27:43 -0500
+
 vim (2:7.4.488-7) unstable; urgency=medium
 
   * Backport patch 7.4.576 to fix jarring toggling of 'linebreak' option when
