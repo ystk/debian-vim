@@ -395,7 +395,7 @@ install-stamp-vim-basic: build-stamp-vim-basic $(DOT_IN_DEPS)
 	done
 	gs -sDefaultCMYKProfile=ps_cmyk.icc -sOutputICCProfile=ps_rgb.icc \
 	    -dSAFER -dEPSCrop -dBATCH -dNOPAUSE \
-	    -sDEVICE=pswrite -sOutputFile=debian/tmplogo.ps runtime/vimlogo.eps
+	    -sDEVICE=ps2write -sOutputFile=debian/tmplogo.ps runtime/vimlogo.eps
 	ps2pdf debian/tmplogo.ps debian/tmplogo.pdf
 	pdf2svg debian/tmplogo.pdf debian/vim-common/usr/share/pixmaps/vim.svg
 	cp debian/vim-common/usr/share/pixmaps/vim.svg \
