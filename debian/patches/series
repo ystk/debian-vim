@@ -41,3 +41,13 @@ CVE-2021-3796.patch
 CVE-2021-3778.patch
 CVE-2019-20807.patch
 backport-check_pos-function.patch
+CVE-2022-0261.patch
+CVE-2022-0351.patch
+CVE-2022-0413.patch
+CVE-2022-0443.patch
+CVE-2022-0572.patch
+CVE-2022-1154.patch
+CVE-2022-1616.patch
+CVE-2022-1619.patch
+CVE-2022-1621.patch
+CVE-2022-1720.patch
