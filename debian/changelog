@@ -1,3 +1,14 @@
+vim (2:7.4.488-7+deb8u7) jessie-security; urgency=high
+
+  * Non-maintainer upload by the ELTS team.
+  * Fix CVE-2022-1851, CVE-2022-1898, CVE-2022-1968, CVE-2022-0943,
+    CVE-2021-3903, CVE-2022-0417, CVE-2022-2124, CVE-2022-2126. Multiple
+    security vulnerabilities have been discovered in vim, an enhanced vi
+    editor. Buffer overflows, out-of-bounds reads and use-after-free may lead
+    to a denial-of-service (application crash) or other unspecified impact.
+
+ -- Markus Koschany <apo@debian.org>  Wed, 22 Jun 2022 10:12:11 +0200
+
 vim (2:7.4.488-7+deb8u6) jessie-security; urgency=high
 
   * Non-maintainer upload by the ELTS team.
