@@ -6,15 +6,12 @@ Subject: backport check_pos function
  src/misc2.c | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
 
-diff --git a/src/misc2.c b/src/misc2.c
-index 32c0b8e..5038314 100644
 --- a/src/misc2.c
 +++ b/src/misc2.c
-@@ -514,6 +514,29 @@ get_cursor_rel_lnum(wp, lnum)
-     return retval;
+@@ -515,6 +515,29 @@ get_cursor_rel_lnum(wp, lnum)
  }
  
-+/*
+ /*
 + * Make sure "pos.lnum" and "pos.col" are valid in "buf".
 + * This allows for the col to be on the NUL byte.
 + */
@@ -37,6 +34,7 @@ index 32c0b8e..5038314 100644
 +}
 +
 +
- /*
++/*
   * Make sure curwin->w_cursor.lnum is valid.
   */
+     void

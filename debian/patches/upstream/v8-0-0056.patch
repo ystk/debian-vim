@@ -8,10 +8,9 @@ Date:   Fri Nov 4 15:23:45 2016 +0100
 
 Tests adapated to work with 7.4.488
 
-diff --git a/src/option.c b/src/option.c
 --- a/src/option.c
 +++ b/src/option.c
-@@ -5606,6 +5606,21 @@ set_string_option(
+@@ -5606,6 +5606,21 @@ set_string_option_direct(name, opt_idx,
  }
  
  /*
@@ -33,7 +32,7 @@ diff --git a/src/option.c b/src/option.c
   * Set global value for string option when it's a local option.
   */
      static void
-@@ -6079,8 +6094,11 @@ did_set_string_option(
+@@ -6079,8 +6094,11 @@ did_set_string_option(opt_idx, varp, new
  #ifdef FEAT_KEYMAP
      else if (varp == &curbuf->b_p_keymap)
      {
@@ -47,10 +46,11 @@ diff --git a/src/option.c b/src/option.c
  
  	if (errmsg == NULL)
  	{
-@@ -7047,6 +7065,22 @@ did_set_string_option(
+@@ -7046,6 +7064,22 @@ did_set_string_option(opt_idx, varp, new
+ 	    errmsg = e_invarg;
      }
  #endif
- 
++
 +#ifdef FEAT_AUTOCMD
 +    else if (gvarp == &p_ft)
 +    {
@@ -66,14 +66,12 @@ diff --git a/src/option.c b/src/option.c
 +	    errmsg = e_invarg;
 +    }
 +#endif
-+
+ 
      /* Options that are a list of flags. */
      else
-     {
-diff --git a/src/testdir/test_options.in b/src/testdir/test_options.in
 --- a/src/testdir/test_options.in
 +++ b/src/testdir/test_options.in
-@@ -10,6 +10,59 @@
+@@ -10,6 +10,59 @@ STARTTEST
  :endtry
  :buf 1
  :$put =caught
@@ -133,7 +131,6 @@ diff --git a/src/testdir/test_options.in b/src/testdir/test_options.in
  :/^result/,$w! test.out
  :qa!
  ENDTEST
-diff --git a/src/testdir/test_options.ok b/src/testdir/test_options.ok
 --- a/src/testdir/test_options.ok
 +++ b/src/testdir/test_options.ok
 @@ -1,2 +1,34 @@
@@ -171,10 +168,9 @@ diff --git a/src/testdir/test_options.ok b/src/testdir/test_options.ok
 +name exception? 1
 +trunc exception? 1
 +trunc exception? 1
-diff --git a/src/version.c b/src/version.c
 --- a/src/version.c
 +++ b/src/version.c
-@@ -1733,6 +1733,8 @@ static char *(features[]) =
+@@ -1733,6 +1733,8 @@ static int included_patches[] =
  static char *(extra_patches[]) =
  {   /* Add your patch description below this line */
  /**/

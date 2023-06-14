@@ -9,7 +9,7 @@
  " URL: http://anonscm.debian.org/hg/pkg-vim/vim/raw-file/unstable/runtime/syntax/debchangelog.vim
  
  " Standard syntax initialization
-@@ -16,10 +16,14 @@
+@@ -16,10 +16,14 @@ endif
  " Case doesn't matter for us
  syn case ignore
  
@@ -26,7 +26,7 @@
  syn match debchangelogVersion	contained "(.\{-})"
  syn match debchangelogCloses	contained "closes:\_s*\(bug\)\=#\=\_s\=\d\+\(,\_s*\(bug\)\=#\=\_s\=\d\+\)*"
  syn match debchangelogLP	contained "\clp:\s\+#\d\+\(,\s*#\d\+\)*"
-@@ -27,7 +31,7 @@
+@@ -27,7 +31,7 @@ syn match debchangelogEmail	contained "[
  syn match debchangelogEmail	contained "<.\{-}>"
  
  " Define the entries that make up the changelog
@@ -35,7 +35,7 @@
  syn region debchangelogFooter start="^ [^ ]" end="$" contains=debchangelogEmail oneline
  syn region debchangelogEntry start="^  " end="$" contains=debchangelogCloses,debchangelogLP oneline
  
-@@ -45,7 +49,8 @@
+@@ -45,7 +49,8 @@ if version >= 508 || !exists("did_debcha
    HiLink debchangelogEntry		Normal
    HiLink debchangelogCloses		Statement
    HiLink debchangelogLP			Statement
@@ -56,7 +56,7 @@
  " URL: http://anonscm.debian.org/hg/pkg-vim/vim/raw-file/unstable/runtime/syntax/debsources.vim
  
  " Standard syntax initialization
-@@ -23,7 +23,7 @@
+@@ -23,7 +23,7 @@ syn match debsourcesComment        /#.*/
  
  " Match uri's
  syn match debsourcesUri            +\(http://\|ftp://\|[rs]sh://\|debtorrent://\|\(cdrom\|copy\|file\):\)[^' 	<>"]\++

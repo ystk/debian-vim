@@ -11,7 +11,7 @@ Bug-Ubuntu: https://launchpad.net/bugs/130531
 
 --- a/runtime/doc/options.txt
 +++ b/runtime/doc/options.txt
-@@ -4969,7 +4969,7 @@
+@@ -4969,7 +4969,7 @@ A jump table for the options with a shor
  
  				   *'modeline'* *'ml'* *'nomodeline'* *'noml'*
  'modeline' 'ml'		boolean	(Vim default: on (off for root),

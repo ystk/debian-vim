@@ -9,10 +9,8 @@ Problem:    Others can read the swap file if a user is careless with his
 Solution:   If the group permission allows for reading but the world
             permissions doesn't, make sure the group is right.
 
-Index: vim-7.4.488/src/fileio.c
-===================================================================
---- vim-7.4.488.orig/src/fileio.c
-+++ vim-7.4.488/src/fileio.c
+--- a/src/fileio.c
++++ b/src/fileio.c
 @@ -697,7 +697,29 @@ readfile(fname, sfname, from, lines_to_s
  	/* Set swap file protection bits after creating it. */
  	if (swap_mode > 0 && curbuf->b_ml.ml_mfp != NULL
@@ -44,10 +42,8 @@ Index: vim-7.4.488/src/fileio.c
  #endif
      }
  
-Index: vim-7.4.488/src/version.c
-===================================================================
---- vim-7.4.488.orig/src/version.c
-+++ vim-7.4.488/src/version.c
+--- a/src/version.c
++++ b/src/version.c
 @@ -1733,6 +1733,8 @@ static int included_patches[] =
  static char *(extra_patches[]) =
  {   /* Add your patch description below this line */

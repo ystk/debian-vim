@@ -8,11 +8,9 @@ Date:   Thu Feb 9 21:07:12 2017 +0100
                 corrupted.
     Solution:   Check for an invalid length (suggested by shqking)
 
-diff --git a/src/spell.c b/src/spell.c
-index c7d87c6c7..8b1a3a633 100644
 --- a/src/spell.c
 +++ b/src/spell.c
-@@ -4043,6 +4043,9 @@ spell_read_tree(
+@@ -4043,6 +4043,9 @@ spell_read_tree(fd, bytsp, idxsp, prefix
      len = get4c(fd);
      if (len < 0)
  	return SP_TRUNCERROR;
@@ -22,11 +20,9 @@ index c7d87c6c7..8b1a3a633 100644
      if (len > 0)
      {
  	/* Allocate the byte array. */
-diff --git a/src/version.c b/src/version.c
-index 7a3d21513..c1a5186ba 100644
 --- a/src/version.c
 +++ b/src/version.c
-@@ -1733,6 +1733,8 @@ static char *(features[]) =
+@@ -1733,6 +1733,8 @@ static int included_patches[] =
  static char *(extra_patches[]) =
  {   /* Add your patch description below this line */
  /**/

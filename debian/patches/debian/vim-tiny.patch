@@ -10,7 +10,7 @@ Bug-Debian: http://bugs.debian.org/222138
 
 --- a/src/main.c
 +++ b/src/main.c
-@@ -83,6 +83,9 @@
+@@ -83,6 +83,9 @@ typedef struct
  #ifdef FEAT_DIFF
      int		diff_mode;		/* start with 'diff' set */
  #endif
@@ -20,7 +20,7 @@ Bug-Debian: http://bugs.debian.org/222138
  } mparm_T;
  
  /* Values for edit_type. */
-@@ -1661,6 +1664,10 @@
+@@ -1661,6 +1664,10 @@ parse_command_name(parmp)
      }
      else if (STRNICMP(initstr, "vim", 3) == 0)
  	initstr += 3;
@@ -31,7 +31,7 @@ Bug-Debian: http://bugs.debian.org/222138
  
      /* Catch "[r][g]vimdiff" and "[r][g]viewdiff". */
      if (STRICMP(initstr, "diff") == 0)
-@@ -2988,7 +2995,12 @@
+@@ -2988,7 +2995,12 @@ source_startup_scripts(parmp)
  	 * Get system wide defaults, if the file name is defined.
  	 */
  #ifdef SYS_VIMRC_FILE
@@ -47,7 +47,7 @@ Bug-Debian: http://bugs.debian.org/222138
  	(void)do_source((char_u *)"$VIMRUNTIME/macmap.vim", FALSE, DOSO_NONE);
 --- a/src/os_unix.h
 +++ b/src/os_unix.h
-@@ -242,6 +242,9 @@
+@@ -242,6 +242,9 @@ typedef struct dsc$descriptor   DESC;
  /*
   * Unix system-dependent file names
   */

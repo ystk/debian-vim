@@ -10,10 +10,9 @@ Solution:   Temporarily reset 'linebreak' and restore it in more places.
 	    (Christian Brabandt)
 
 
-diff --git a/src/normal.c b/src/normal.c
 --- a/src/normal.c
 +++ b/src/normal.c
-@@ -1393,10 +1393,6 @@
+@@ -1393,10 +1393,6 @@ do_pending_operator(cap, old_col, gui_ya
      int		    include_line_break = FALSE;
  #endif
  
@@ -24,7 +23,7 @@ diff --git a/src/normal.c b/src/normal.c
  #if defined(FEAT_CLIPBOARD)
      /*
       * Yank the visual area into the GUI selection register before we operate
-@@ -1420,6 +1416,10 @@
+@@ -1420,6 +1416,10 @@ do_pending_operator(cap, old_col, gui_ya
       */
      if ((finish_op || VIsual_active) && oap->op_type != OP_NOP)
      {
@@ -35,7 +34,7 @@ diff --git a/src/normal.c b/src/normal.c
  	oap->is_VIsual = VIsual_active;
  	if (oap->motion_force == 'V')
  	    oap->motion_type = MLINE;
-@@ -1819,7 +1819,13 @@
+@@ -1819,7 +1819,13 @@ do_pending_operator(cap, old_col, gui_ya
  			    || oap->op_type == OP_FUNCTION
  			    || oap->op_type == OP_FILTER)
  			&& oap->motion_force == NUL)
@@ -49,7 +48,7 @@ diff --git a/src/normal.c b/src/normal.c
  	    }
  	}
  
-@@ -1863,7 +1869,12 @@
+@@ -1863,7 +1869,12 @@ do_pending_operator(cap, old_col, gui_ya
  		    || oap->op_type == OP_FOLD
  #endif
  		    ))
@@ -62,7 +61,7 @@ diff --git a/src/normal.c b/src/normal.c
  
  	/*
  	 * If the end of an operator is in column one while oap->motion_type
-@@ -1947,7 +1958,12 @@
+@@ -1947,7 +1958,12 @@ do_pending_operator(cap, old_col, gui_ya
  		}
  	    }
  	    else
@@ -75,7 +74,7 @@ diff --git a/src/normal.c b/src/normal.c
  	    check_cursor_col();
  	    break;
  
-@@ -1969,6 +1985,11 @@
+@@ -1969,6 +1985,11 @@ do_pending_operator(cap, old_col, gui_ya
  		else
  		    restart_edit_save = 0;
  		restart_edit = 0;
@@ -87,7 +86,7 @@ diff --git a/src/normal.c b/src/normal.c
  		/* Reset finish_op now, don't want it set inside edit(). */
  		finish_op = FALSE;
  		if (op_change(oap))	/* will call edit() */
-@@ -2064,8 +2085,16 @@
+@@ -2064,8 +2085,16 @@ do_pending_operator(cap, old_col, gui_ya
  		 * Visual mode.  But do this only once. */
  		restart_edit_save = restart_edit;
  		restart_edit = 0;
@@ -105,7 +104,7 @@ diff --git a/src/normal.c b/src/normal.c
  
  		/* TODO: when inserting in several lines, should format all
  		 * the lines. */
-@@ -2090,7 +2119,14 @@
+@@ -2090,7 +2119,14 @@ do_pending_operator(cap, old_col, gui_ya
  	    }
  #ifdef FEAT_VISUALEXTRA
  	    else
@@ -120,7 +119,7 @@ diff --git a/src/normal.c b/src/normal.c
  #endif
  	    break;
  
-@@ -2134,7 +2170,12 @@
+@@ -2134,7 +2170,12 @@ do_pending_operator(cap, old_col, gui_ya
  	    if (!p_sol && oap->motion_type == MLINE && !oap->end_adjusted
  		    && (oap->op_type == OP_LSHIFT || oap->op_type == OP_RSHIFT
  						|| oap->op_type == OP_DELETE))
@@ -133,10 +132,9 @@ diff --git a/src/normal.c b/src/normal.c
  	}
  	else
  	{
-diff --git a/src/version.c b/src/version.c
 --- a/src/version.c
 +++ b/src/version.c
-@@ -742,6 +742,8 @@
+@@ -742,6 +742,8 @@ static char *(features[]) =
  static int included_patches[] =
  {   /* Add new patch number below this line */
  /**/
@@ -145,4 +143,3 @@ diff --git a/src/version.c b/src/version.c
      488,
  /**/
      487,
-

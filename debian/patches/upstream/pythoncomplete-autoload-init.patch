@@ -3,11 +3,9 @@ Forwarded: no
 Author: John Eikenberry <jae@zhar.net>
 Bug-Debian: http://bugs.debian.org/608420
 
-Index: b/runtime/autoload/pythoncomplete.vim
-===================================================================
 --- a/runtime/autoload/pythoncomplete.vim
 +++ b/runtime/autoload/pythoncomplete.vim
-@@ -377,6 +377,7 @@
+@@ -377,6 +377,7 @@ class PyParser:
      def __init__(self):
          self.top = Scope('global',0)
          self.scope = self.top

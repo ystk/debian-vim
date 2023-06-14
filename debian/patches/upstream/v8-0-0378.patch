@@ -7,11 +7,9 @@ Date:   Sun Feb 26 18:17:10 2017 +0100
     Problem:    Another possible overflow when reading corrupted undo file.
     Solution:   Check if allocated size is not too big. (King)
 
-diff --git a/src/undo.c b/src/undo.c
-index ba7c0b83c..5b953795e 100644
 --- a/src/undo.c
 +++ b/src/undo.c
-@@ -1423,7 +1423,7 @@ unserialize_uep(bufinfo_T *bi, int *error, char_u *file_name)
+@@ -1423,7 +1423,7 @@ unserialize_uep(bi, error, file_name)
  {
      int		i;
      u_entry_T	*uep;
@@ -20,7 +18,7 @@ index ba7c0b83c..5b953795e 100644
      char_u	*line;
      int		line_len;
  
-@@ -1440,7 +1440,8 @@ unserialize_uep(bufinfo_T *bi, int *error, char_u *file_name)
+@@ -1440,7 +1440,8 @@ unserialize_uep(bi, error, file_name)
      uep->ue_size = undo_read_4c(bi);
      if (uep->ue_size > 0)
      {
@@ -30,7 +28,7 @@ index ba7c0b83c..5b953795e 100644
  	if (array == NULL)
  	{
  	    *error = TRUE;
-@@ -1448,8 +1449,6 @@ unserialize_uep(bufinfo_T *bi, int *error, char_u *file_name)
+@@ -1448,8 +1449,6 @@ unserialize_uep(bi, error, file_name)
  	}
  	vim_memset(array, 0, sizeof(char_u *) * uep->ue_size);
      }
@@ -39,11 +37,9 @@ index ba7c0b83c..5b953795e 100644
      uep->ue_array = array;
  
      for (i = 0; i < uep->ue_size; ++i)
-diff --git a/src/version.c b/src/version.c
-index c79020b21..026b82981 100644
 --- a/src/version.c
 +++ b/src/version.c
-@@ -1733,6 +1733,8 @@ static char *(features[]) =
+@@ -1733,6 +1733,8 @@ static int included_patches[] =
  static char *(extra_patches[]) =
  {   /* Add your patch description below this line */
  /**/
