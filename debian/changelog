@@ -1,3 +1,12 @@
+vim (2:7.4.488-7+deb8u11) jessie-security; urgency=medium
+
+  * Non-maintainer upload by the ELTS Team.
+  * CVE-2023-4752: Heap use after free in ins_compl_get_exp()
+  * CVE-2023-4781: Heap buffer-overflow in vim_regsub_both()
+  * CVE-2023-5344: Heap buffer-overflow in trunc_string()
+
+ -- Adrian Bunk <bunk@debian.org>  Sun, 12 Nov 2023 21:38:17 +0200
+
 vim (2:7.4.488-7+deb8u10) jessie-security; urgency=high
 
   * Non-maintainer upload by the ELTS team.

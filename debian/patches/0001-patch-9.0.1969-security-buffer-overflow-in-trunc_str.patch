@@ -1,0 +1,47 @@
+From 38bfa2c12394c8eddd42b63e20f08a25ae6ca997 Mon Sep 17 00:00:00 2001
+From: Christian Brabandt <cb@256bit.org>
+Date: Mon, 2 Oct 2023 20:59:08 +0200
+Subject: patch 9.0.1969: [security] buffer-overflow in trunc_string()
+
+Problem:  buffer-overflow in trunc_string()
+Solution: Add NULL at end of buffer
+
+Currently trunc_string() assumes that when the string is too long,
+buf[e-1] will always be writeable. But that assumption may not always be
+true. The condition currently looks like this
+
+    else if (e + 3 < buflen)
+    [...]
+    else
+    {
+	// can't fit in the "...", just truncate it
+	buf[e - 1] = NUL;
+    }
+
+but this means, we may run into the last else clause with e still being
+larger than buflen. So a buffer overflow occurs.
+
+So instead of using `buf[e - 1]`, let's just always
+truncate at `buf[buflen - 1]` which should always be writable.
+
+Signed-off-by: Christian Brabandt <cb@256bit.org>
+---
+ src/message.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/message.c b/src/message.c
+index 8508f6dfd..e999e8100 100644
+--- a/src/message.c
++++ b/src/message.c
+@@ -333,7 +333,7 @@ trunc_string(s, buf, room, buflen)
+     }
+     else
+     {
+-	buf[e - 1] = NUL;  /* make sure it is truncated */
++	buf[buflen - 1] = NUL;  /* make sure it is truncated */
+     }
+ }
+ 
+-- 
+2.30.2
+
