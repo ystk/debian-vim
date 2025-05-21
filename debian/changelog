@@ -1,3 +1,14 @@
+vim (2:7.4.488-7+deb8u12) jessie-security; urgency=medium
+
+  * Non-maintainer upload by the Security Team.
+  * CVE-2023-4738: buffer-overflow in vim_regsub_both
+  * CVE-2024-22667: stack-buffer-overflow in option callback functions
+  * CVE-2024-43802: heap-buffer-overflow in ins_typebuf
+  * CVE-2024-47814: use-after-free when closing a buffer
+  * Fix arch:all build
+
+ -- Jochen Sprickerhof <jspricke@debian.org>  Tue, 20 May 2025 13:13:59 +0200
+
 vim (2:7.4.488-7+deb8u11) jessie-security; urgency=medium
 
   * Non-maintainer upload by the ELTS Team.

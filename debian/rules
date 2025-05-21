@@ -232,7 +232,7 @@ build: build-stamp-arch
 
 build-indep: build-stamp-indep
 build-stamp-indep: export DH_OPTIONS=-pvim-doc
-build-stamp-indep:
+build-stamp-indep: src/auto/config.mk
 	dh_testdir
 	dh_prep
 	$(MAKE) -C runtime/doc html

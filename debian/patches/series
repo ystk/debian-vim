@@ -80,3 +80,7 @@ CVE-2023-2610.patch
 CVE-2023-4752-heap-use-after-free-in-ins_compl_get_exp.patch
 CVE-2023-4781-heap-buffer-overflow-in-vim_regsub_both.patch
 0001-patch-9.0.1969-security-buffer-overflow-in-trunc_str.patch
+CVE-2023-4738.patch
+CVE-2024-22667.patch
+CVE-2024-43802.patch
+CVE-2024-47814.patch
